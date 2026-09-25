@@ -7,15 +7,34 @@ Health, हिंदी, ಕನ್ನಡ, plus Saved and Past days.
 
 ## Features
 
+- **Two layouts**, switched with the header button (or Personalise → Layout), remembered per device:
+  - **List** (default): a compact reader with about 6 stories per phone screen, plus a lead story at the top of each section.
+  - **Swipe cards**: one story per screen with a big image and summary. Swipe up or down for the next story and
+    left or right for the next section. On a laptop, use the mouse wheel or the ↑/↓ keys. Search results always show as a list.
+- **Midnight theme** (dark) everywhere by default. Paper (light) is in Personalise → Theme.
+- **Brief** tab: your morning brief. It has the top 3 stories, the #1 story from each section and your topics, plus markets,
+  cricket and "On this day". Tap **Listen** to hear it.
+- **Following** tab: add topics (e.g. ISRO, RCB, Namma Metro) to collect matching stories from every section.
+- **Listen**: reads the headlines aloud with your device's own voices (free, works offline), highlighting each story.
+  Hindi and Kannada need those voices installed on the device.
+- **Videos** tab: latest videos from WION, NDTV, DD News, India Today, Firstpost, ThePrint, BBC, Al Jazeera,
+  Marques Brownlee and The Verge (YouTube feeds).
+- **Rain alert**: "85% chance of rain from 4 PM today" when Bengaluru rain is likely. You can dismiss it for the day.
+- **Markets** (Brief and Business tabs): USD/EUR/GBP in rupees (ECB reference rates) and Bitcoin (CoinGecko).
+- **Cricket** (Brief and Sports tabs): live and recent matches. This is optional and needs a free CricAPI key (see below).
+- **Filters**: All / 3 hours / Today, and Latest / Most covered, above each section.
+- **Text size**: A− to A++ in Personalise.
+- **Reading stats** in Personalise: stories today and this week, your day streak and top sections. They stay on your device.
+- **Pull to refresh** on phones. **Keyboard shortcuts** on laptops: press `?` to see them.
 - **Top Stories**: the stories covered by the most outlets right now.
 - **"N sources" button**: shows the other outlets covering the same story, with links.
 - **New since last visit**: a NEW badge on each new story, a count on each tab, and an "Earlier stories" divider.
 - **Mark as read**: stories you've opened are dimmed. Use ⋯ → Mark as unread to undo.
 - **Save for later**: bookmark icon on every story, plus a Saved tab.
 - **⋯ menu**: Share, Copy link, Mark as read/unread, Hide stories from this source.
-- **Personalise** (sliders icon): hide or reorder sections, hide sources or words, clear reading history.
+- **Personalise** (sliders icon): layout, theme, hide or reorder sections, hide sources or words, clear reading history.
 - **Swipe** left or right on a phone to change section.
-- **Weather** for Bengaluru: now, plus the next 3 days (Open-Meteo, fetched at build time).
+- **Weather** for Bengaluru on one line. Tap it for the 3-day forecast (Open-Meteo, fetched at build time).
 - **Past days**: browse any of the last 30 days. Search can also look through them ("Search the last 30 days too").
 - **Installable app** with offline reading: "Add to Home Screen" (iPhone Safari) or "Install app" (Android Chrome).
 - **⟳ refresh button** and a "New stories are available" banner. See below.
@@ -31,7 +50,8 @@ On iPhone, a home-screen app has separate storage from Safari, so set the ⟳ to
 | `feeds.json` | Sections, their feeds, weather location and settings. Edit this to add or remove sources. |
 | `fetch_news.py` | Downloads the feeds and writes `site/data.js`. Only uses Python's standard library. |
 | `cluster.py` | Groups headlines about the same story (Top Stories and "N sources"). |
-| `weather.py` | Fetches the weather from Open-Meteo. |
+| `weather.py` | Fetches the weather and the rain alert from Open-Meteo. |
+| `extras.py` | Markets, "On this day" and cricket scores. |
 | `archive.py` | Keeps 30 days of stories on the `archive` branch and publishes them under `site/archive/`. |
 | `feed_health.py` | Tracks failing feeds and opens or closes GitHub issues. |
 | `site/` | The page: `index.html`, `style.css`, `app.js`, `sw.js` (offline), `manifest.webmanifest`, `icons/`. |
@@ -74,6 +94,15 @@ The first time, it asks for a GitHub **fine-grained token**:
 
 It is saved only in that browser on that device. To change or remove it, go to Personalise → "Refresh button token…",
 or delete it on GitHub (Settings → Developer settings → Personal access tokens).
+
+## Cricket scores (optional)
+
+1. Sign up free at https://cricapi.com (100 requests a day is plenty for hourly updates) and copy your API key.
+2. In the GitHub repo, go to **Settings → Secrets and variables → Actions → New repository secret**.
+   Name it `CRICAPI_KEY` and paste the key as the value.
+3. Run **Actions → Update news → Run workflow**. Scores appear on the Brief and Sports tabs.
+
+The key stays in GitHub's encrypted secrets. It is only given to the "Fetch feeds" step and never written to the site.
 
 ## Security
 

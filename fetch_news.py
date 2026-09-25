@@ -9,6 +9,7 @@ import argparse
 import hashlib
 import html
 import json
+import os
 import re
 import shutil
 import sys
@@ -22,6 +23,7 @@ from urllib.parse import urlparse
 
 import archive
 import cluster
+import extras
 import feed_health
 import weather
 
@@ -92,11 +94,12 @@ def parse_date(s):
 
 def find_image(item, raw_html):
     best, best_w = None, -1
-    for tag in ("media:content", "media:thumbnail", "media:group/media:content"):
+    for tag in ("media:content", "media:thumbnail", "media:group/media:content", "media:group/media:thumbnail"):
         for m in item.findall(tag, NS):
             url = m.get("url")
-            if not url or (m.get("medium") not in (None, "image") and "image" not in (m.get("type") or "image")):
-                continue
+            mtype = m.get("type") or ""
+            if not url or m.get("medium") not in (None, "image") or (mtype and not mtype.startswith("image")):
+                continue  # e.g. YouTube's old Flash player link
             w = int(m.get("width") or 0)
             if w > best_w:
                 best, best_w = url, w
@@ -153,9 +156,12 @@ def parse_feed(url, data):
             if link_el is None:
                 link_el = it.find("atom:link", NS)
             link = link_el.get("href") if link_el is not None else ""
-            raw = text(it.find("atom:content", NS)) or text(it.find("atom:summary", NS))
+            raw = (text(it.find("atom:content", NS)) or text(it.find("atom:summary", NS))
+                   or text(it.find("media:group/media:description", NS)))  # YouTube
             date = parse_date(text(it.find("atom:published", NS)) or text(it.find("atom:updated", NS)))
+            author = text(it.find("atom:author/atom:name", NS))
         else:
+            author = ""
             title = text(it.find("title"))
             link = text(it.find("link")) or text(it.find("guid"))
             raw = text(it.find("content:encoded", NS)) or text(it.find("description"))
@@ -163,7 +169,7 @@ def parse_feed(url, data):
         title = strip_html(title)
         if not title or not link:
             continue
-        source = None
+        source = author if "youtube.com" in url and author else None  # YouTube: the channel name
         if "news.google.com" in url:
             src_el = it.find("source")
             source = text(src_el) or None
@@ -282,7 +288,10 @@ def main():
         kw = keyword_matcher(cat.get("keywords", []))
         for u in cat.get("scan", []):
             pool.extend(dict(it) for it in results[u][0] if kw and kw(it["title"]))
-        categories.append({"id": cat["id"], "name": cat["name"], "lang": cat.get("lang"), "items": pool,
+        if cat.get("kind") == "video":
+            for it in pool:
+                it["video"] = True
+        categories.append({"id": cat["id"], "name": cat["name"], "lang": cat.get("lang"), "kind": cat.get("kind"), "items": pool,
                            "max_age": cat.get("max_age_hours", settings["max_age_hours"])})
 
     blocked = {s.lower() for s in settings.get("block_sources", [])}
@@ -314,7 +323,8 @@ def main():
             it["image"] = found.get(it["link"])
         log(f"og:image lookups: {sum(1 for v in found.values() if v)}/{len(uniq)} found")
 
-    english = [c for c in categories if not c["lang"]]
+    # All, Top Stories and "N sources" use the English news sections (not language tabs or videos).
+    english = [c for c in categories if not c["lang"] and not c["kind"]]
 
     # Same story across outlets → "covered by N sources" links, and the Top Stories tab.
     unique = list({it["link"]: it for c in english for it in c["items"]}.values())
@@ -360,7 +370,8 @@ def main():
     if top_items:
         sections.append({"id": "top", "name": "Top Stories", "items": top_items})
     for c in categories:
-        sections.append({"id": c["id"], "name": c["name"], "items": c["items"], **({"lang": c["lang"]} if c["lang"] else {})})
+        sections.append({"id": c["id"], "name": c["name"], "items": c["items"],
+                         **({"lang": c["lang"]} if c["lang"] else {}), **({"kind": c["kind"]} if c["kind"] else {})})
 
     # Lazy loading: data.js carries only the first stories of each section (fast first paint) plus every
     # story id (for "new" counts); each section's full list is in site/data/<id>.json, fetched on demand.
@@ -376,6 +387,11 @@ def main():
         "generated": now.isoformat(),
         "weather": weather.fetch_weather(cfg.get("weather"), http_get),
         "archive": bool(args.store),
+        "extras": {
+            "markets": extras.markets(http_get),
+            "onthisday": extras.on_this_day(http_get),
+            "cricket": extras.cricket(http_get, os.environ.get("CRICAPI_KEY", "").strip()),
+        },
         "categories": [
             {**{k: v for k, v in sec.items() if k != "items"},
              "total": len(sec["items"]), "ids": [it["id"] for it in sec["items"]], "items": sec["items"][:first]}

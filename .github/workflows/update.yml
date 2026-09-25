@@ -38,6 +38,8 @@ jobs:
             || { mkdir -p store && git -C store init --quiet -b archive; }
 
       - name: Fetch feeds
+        env:
+          CRICAPI_KEY: ${{ secrets.CRICAPI_KEY }}   # optional; cricket scores are skipped when not set
         run: python fetch_news.py --store store
 
       - name: Report broken feeds

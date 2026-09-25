@@ -35,14 +35,15 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
           <input id="q" type="search" placeholder="Search headlines" autocomplete="off" aria-label="Search headlines">
         </label>
+        <button id="viewBtn" class="icon-btn" title="Switch to swipe cards" aria-label="Switch to swipe cards">
+          <svg class="v-to-cards" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 7h6"/></svg>
+          <svg class="v-to-list" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><rect x="3" y="4.5" width="3" height="3" rx=".8"/><rect x="3" y="10.5" width="3" height="3" rx=".8"/><rect x="3" y="16.5" width="3" height="3" rx=".8"/></svg>
+        </button>
         <button id="refresh" class="icon-btn" title="Fetch latest news" aria-label="Fetch latest news">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
         </button>
         <button id="prefsBtn" class="icon-btn" title="Personalise" aria-label="Personalise">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
-        </button>
-        <button id="theme" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
         </button>
       </div>
     </div>
@@ -55,8 +56,10 @@
   </header>
 
   <section id="weather" class="wx" aria-label="Weather" hidden></section>
+  <section id="extras" class="extras" aria-label="Tools"></section>
   <main id="feed" class="feed" aria-live="polite"></main>
   <div id="feedEnd" class="feed-end" role="status" hidden></div>
+  <section id="extrasEnd" class="extras"></section>
   <div id="sentinel" class="sentinel"></div>
   <button id="toTop" class="to-top" type="button" aria-label="Back to top" title="Back to top" hidden>
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
@@ -69,9 +72,34 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="menu" class="menu" role="menu" hidden></div>
+  <div id="ptr" class="ptr" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="m6 13 6 6 6-6"/></svg><span>Pull to refresh</span></div>
 
   <dialog id="prefsDlg" class="dlg" aria-labelledby="prefsTitle">
     <h2 id="prefsTitle">Personalise</h2>
+    <h3>Appearance</h3>
+    <div class="seg-row">
+      <span>Layout</span>
+      <div class="seg" role="group" aria-label="Layout">
+        <button type="button" data-set-view="list" aria-pressed="true">List</button>
+        <button type="button" data-set-view="cards" aria-pressed="false">Swipe cards</button>
+      </div>
+    </div>
+    <div class="seg-row">
+      <span>Text size</span>
+      <div class="seg" role="group" aria-label="Text size">
+        <button type="button" data-set-size="s" aria-pressed="false" aria-label="Small text">A−</button>
+        <button type="button" data-set-size="m" aria-pressed="true" aria-label="Normal text">A</button>
+        <button type="button" data-set-size="l" aria-pressed="false" aria-label="Large text">A+</button>
+        <button type="button" data-set-size="xl" aria-pressed="false" aria-label="Extra large text">A++</button>
+      </div>
+    </div>
+    <div class="seg-row">
+      <span>Theme</span>
+      <div class="seg" role="group" aria-label="Theme">
+        <button type="button" data-set-theme="dark" aria-pressed="true">Midnight</button>
+        <button type="button" data-set-theme="light" aria-pressed="false">Paper</button>
+      </div>
+    </div>
     <h3>Sections</h3>
     <p class="note">Untick to hide a section. Use the arrows to change the order.</p>
     <ul id="secList" class="sec-list"></ul>
@@ -81,9 +109,11 @@
       <input id="muteInput" type="text" placeholder="Hide stories containing…" autocomplete="off" aria-label="Word or phrase to hide">
       <button id="muteAdd" class="btn" type="button">Hide</button>
     </div>
+    <h3>Your reading</h3>
+    <div id="stats" class="stats"></div>
     <h3>More</h3>
     <div class="btn-row">
-      <button id="clearRead" class="btn" type="button">Clear reading history</button>
+      <button id="clearRead" class="btn" type="button">Clear reading history &amp; stats</button>
       <button id="tokenOpen" class="btn" type="button">Refresh button token…</button>
     </div>
     <p class="note">These settings are saved only on this device.</p>
@@ -92,6 +122,22 @@
       <span class="spacer"></span>
       <button id="prefsDone" class="btn primary" type="button">Done</button>
     </div>
+  </dialog>
+
+  <dialog id="keysDlg" class="dlg" aria-labelledby="keysTitle">
+    <h2 id="keysTitle">Keyboard shortcuts</h2>
+    <dl class="keys">
+      <dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next / previous story (swipe cards: also ↑ ↓ and space)</dd>
+      <dt><kbd>o</kbd> <kbd>Enter</kbd></dt><dd>Open the story</dd>
+      <dt><kbd>s</kbd></dt><dd>Save / unsave</dd>
+      <dt><kbd>m</kbd></dt><dd>More options (share, hide source…)</dd>
+      <dt><kbd>l</kbd></dt><dd>Listen / stop</dd>
+      <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Jump to a section</dd>
+      <dt><kbd>v</kbd></dt><dd>Switch list / swipe cards</dd>
+      <dt><kbd>/</kbd></dt><dd>Search</dd>
+      <dt><kbd>?</kbd></dt><dd>This help</dd>
+    </dl>
+    <div class="dlg-actions"><span class="spacer"></span><button id="keysClose" class="btn" type="button">Close</button></div>
   </dialog>
 
   <dialog id="archiveDlg" class="dlg" aria-labelledby="archiveTitle">

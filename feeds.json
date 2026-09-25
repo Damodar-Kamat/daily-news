@@ -164,6 +164,54 @@
       ]
     },
     {
+      "id": "videos",
+      "name": "Videos",
+      "kind": "video",
+      "max_age_hours": 72,
+      "feeds": [
+        {
+          "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC_gUM8rL-Lrg6O3adPW9K1g",
+          "limit": 6
+        },
+        {
+          "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCZFMm1mMw0F81Z37aaEzTUA",
+          "limit": 6
+        },
+        {
+          "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCKwucPzHZ7zCUIf7If-Wo1g",
+          "limit": 6
+        },
+        {
+          "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCYPvAwZP8pZhSMW8qs7cVCw",
+          "limit": 6
+        },
+        {
+          "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCz8QaiQxApLq8sLNcszYyJw",
+          "limit": 6
+        },
+        {
+          "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCuyRsHZILrU7ZDIAbGASHdA",
+          "limit": 6
+        },
+        {
+          "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA",
+          "limit": 6
+        },
+        {
+          "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCNye-wNBqNL5ZzHSJj3l8Bg",
+          "limit": 6
+        },
+        {
+          "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCBJycsmduvYEL83R_U4JriQ",
+          "limit": 6
+        },
+        {
+          "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCddiUEpeqJcYeBxX1IVBKvQ",
+          "limit": 6
+        }
+      ]
+    },
+    {
       "id": "hindi",
       "name": "हिंदी",
       "lang": "hi",
