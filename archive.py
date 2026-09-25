@@ -9,8 +9,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 IST = timezone(timedelta(hours=5, minutes=30))
-FIELDS = ("title", "link", "image", "source", "published", "category")
-PER_DAY = 900
+FIELDS = ("id", "title", "link", "image", "source", "published", "category")
+PER_DAY = 2500
 
 
 def _day_of(item, now):

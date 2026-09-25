@@ -1,7 +1,7 @@
 (() => {
   "use strict";
   const DATA = window.NEWS_DATA;
-  const PAGE = 24;
+  const FIRST_BATCH = 20; // stories shown first; more appear as you scroll, in screen-sized batches
   const DEFAULT_TAB = "tech"; // section shown when the page is opened without a #section in the URL
   const COLORS = {
     all: "#ff6a3d", top: "#f59e0b", india: "#ff9933", bengaluru: "#0891b2", defence: "#4f7942",
@@ -28,7 +28,7 @@
   const $ = (s, r = document) => r.querySelector(s);
   const els = {
     tabs: $("#tabs"), feed: $("#feed"), meta: $("#meta"), q: $("#q"), wx: $("#weather"),
-    modebar: $("#modebar"), toast: $("#toast"), menu: $("#menu"), past: $("#pastSearch"),
+    modebar: $("#modebar"), toast: $("#toast"), menu: $("#menu"), past: $("#pastSearch"), end: $("#feedEnd"),
   };
 
   const store = {
@@ -138,6 +138,7 @@
   let savedLinks = new Set(saved.map((it) => it.link));
   const persistSaved = () => { savedLinks = new Set(saved.map((it) => it.link)); store.setJson("saved", saved); };
 
+  const key = (it) => it.id || it.link; // stories carry a short id; older/saved ones fall back to the link
   const readSet = new Set(strList(store.json("read", []), 2000));
   let readTimer;
   const persistRead = () => {
@@ -146,13 +147,15 @@
   };
 
   // "New since last visit": a story is new if it wasn't in the news you were shown last time.
-  // (Tracking links rather than times means stories fetched by ⟳ still count as new.)
-  const prevSeen = new Set(strList(store.json("seenLinks", []), 3000));
+  // (Tracking story ids rather than times means stories fetched by ⟳ still count as new.)
+  const allIds = [...new Set(DATA.categories.flatMap((c) => c.ids || c.items.map(key)))];
+  const prevSeen = new Set(strList(store.json("seenIds", []), 5000));
   const firstVisit = prevSeen.size === 0;
-  const stampVisit = () => store.setJson("seenLinks", [...new Set(DATA.categories.flatMap((c) => c.items.map((it) => it.link)))].slice(0, 3000));
+  const stampVisit = () => store.setJson("seenIds", allIds.slice(0, 5000));
   addEventListener("pagehide", stampVisit);
   document.addEventListener("visibilitychange", () => { if (document.hidden) stampVisit(); });
-  const isNew = (it) => !firstVisit && !prevSeen.has(it.link) && !readSet.has(it.link);
+  const isNewId = (id) => !firstVisit && !prevSeen.has(id) && !readSet.has(id);
+  const isNew = (it) => isNewId(key(it));
 
   let mutedSet = new Set(), muteRe = null;
   function buildMute() {
@@ -167,6 +170,25 @@
   // ───────────────────────── sections / tabs ─────────────────────────
 
   const live = DATA.categories;
+  // data.js holds only the first stories of each section; the rest is fetched on demand.
+  for (const c of live) c.complete = !(c.total > c.items.length);
+  const loading = new Map();
+  function loadSection(id) {
+    const sec = live.find((c) => c.id === id);
+    if (!sec || sec.complete) return Promise.resolve(true);
+    if (!loading.has(id)) {
+      loading.set(id, fetch(`data/${encodeURIComponent(id)}.json?v=${encodeURIComponent(DATA.generated)}`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))))
+        .then((d) => {
+          if (Array.isArray(d.items) && d.items.length >= sec.items.length) sec.items = d.items;
+          sec.complete = true;
+          return true;
+        })
+        .catch(() => { loading.delete(id); return false; }));
+    }
+    return loading.get(id);
+  }
+  const loadAllSections = () => Promise.all(live.map((c) => loadSection(c.id)));
   const nameToId = Object.fromEntries(live.map((c) => [c.name, c.id]));
   const langOf = Object.fromEntries(live.filter((c) => c.lang).map((c) => [c.name, c.lang]));
   const colorFor = (catName) => COLORS[nameToId[catName] || String(catName || "").toLowerCase()] || "#ff6a3d";
@@ -186,8 +208,8 @@
   function renderTabs() {
     const x = els.tabs.scrollLeft;
     els.tabs.innerHTML = currentTabs().map((t) => {
-      const n = t.id === "saved" ? t.items.length : t.items.filter(visible).length;
-      const fresh = mode === "live" && t.id !== "saved" ? t.items.filter((it) => isNew(it) && visible(it)).length : 0;
+      const n = t.id === "saved" || t.complete === undefined || t.complete ? t.items.filter((it) => t.id === "saved" || visible(it)).length : t.total;
+      const fresh = mode === "live" && t.id !== "saved" ? (t.ids || []).filter(isNewId).length : 0;
       return `<button class="tab" role="tab" data-id="${esc(t.id)}" data-c="${COLORS[t.id] || colorFor(t.name)}" aria-selected="${t.id === active}">
         ${t.id === "saved" ? ICON.bookmark : '<span class="dot"></span>'}${esc(t.name)}<span class="count">${n}</span>${fresh ? `<span class="fresh" title="${fresh} new since your last visit">${fresh}</span>` : ""}
       </button>`;
@@ -220,6 +242,17 @@
       window.scrollTo({ top: 0 });
     }
     render();
+    if (mode === "live") loadSection(id).then(() => sectionArrived(id));
+  }
+
+  // A section's full list arrived: extend the current feed in place (the first stories are the same,
+  // so what's already on screen doesn't change or jump).
+  function sectionArrived(id) {
+    if (id !== active || mode !== "live") return;
+    if (els.q.value.trim()) return render();
+    buildEntries();
+    renderTabs();
+    fill();
   }
 
   // ───────────────────────── feed ─────────────────────────
@@ -227,7 +260,7 @@
   const matches = (it, q) => `${it.title} ${it.summary || ""} ${it.source}`.toLowerCase().includes(q);
   const uniqByLink = (arr) => { const s = new Set(); return arr.filter((it) => !s.has(it.link) && s.add(it.link)); };
 
-  function render() {
+  function buildEntries() {
     const q = els.q.value.trim().toLowerCase();
     let items;
     leadOn = false;
@@ -235,7 +268,7 @@
     if (q) {
       const pool = mode === "archive" ? archiveCats[0].items.concat(...archiveCats.slice(1).map((c) => c.items))
         : live.flatMap((c) => c.items).concat(saved);
-      items = uniqByLink(pool.concat(pastResults || [])).filter((it) => matches(it, q) && visible(it)).slice(0, 300);
+      items = uniqByLink(pool.concat(pastResults || [])).filter((it) => matches(it, q) && visible(it)).slice(0, 400);
     } else {
       items = tabItems(active);
       if (active !== "saved") items = items.filter(visible);
@@ -252,25 +285,72 @@
       const firstOld = list.findIndex((it, i) => i > 0 && !isNew(it));
       if (firstOld > 0 && list.slice(0, firstOld).some(isNew)) entries.splice(firstOld, 0, { divider: true });
     }
-    els.feed.innerHTML = list.length ? "" : `<p class="empty">${
+  }
+
+  function render() {
+    const q = els.q.value.trim().toLowerCase();
+    buildEntries();
+    els.feed.innerHTML = list.length || waitingForData() ? "" : `<p class="empty">${
       q ? `No stories matching “${esc(q)}”.`
         : active === "saved" ? "Nothing saved yet. Tap the bookmark on any story to keep it here."
           : "No stories here right now."}</p>`;
     shown = 0;
-    more();
+    more(FIRST_BATCH);
+    fill();
     els.past.hidden = !(q && DATA.archive && !pastResults);
     els.past.disabled = false;
     els.past.textContent = "Search the last 30 days too";
+    // Searching needs every section; fetch the ones not loaded yet, then search again.
+    if (q && mode === "live" && live.some((c) => !c.complete)) {
+      loadAllSections().then(() => { if (els.q.value.trim().toLowerCase() === q) render(); });
+    }
   }
 
-  function more() {
-    if (shown >= entries.length) return;
-    const chunk = entries.slice(shown, shown + PAGE);
-    els.feed.insertAdjacentHTML("beforeend", chunk.map((e) => (e.divider
-      ? '<div class="divider" role="separator"><span>Earlier stories</span></div>'
-      : card(e.it, e.i, leadOn && e.i === 0))).join(""));
-    paint(els.feed);
-    shown += chunk.length;
+  // Is more data on its way for what's on screen (a section still downloading, or a search across sections)?
+  function waitingForData() {
+    if (mode !== "live") return false;
+    if (els.q.value.trim()) return live.some((c) => !c.complete);
+    const sec = live.find((c) => c.id === active);
+    return !!sec && !sec.complete;
+  }
+
+  // How many cards fill roughly one screen: columns × rows that fit in the window.
+  function batchSize() {
+    const cols = getComputedStyle(els.feed).gridTemplateColumns.split(" ").filter(Boolean).length || 1;
+    const rowHeight = innerWidth <= 760 ? 124 : 360;
+    return Math.max(6, cols * Math.ceil(innerHeight / rowHeight));
+  }
+
+  function more(count = batchSize()) {
+    if (shown < entries.length) {
+      const chunk = entries.slice(shown, shown + count);
+      els.feed.insertAdjacentHTML("beforeend", chunk.map((e) => (e.divider
+        ? '<div class="divider" role="separator"><span>Earlier stories</span></div>'
+        : card(e.it, e.i, leadOn && e.i === 0))).join(""));
+      paint(els.feed);
+      shown += chunk.length;
+    }
+    updateFeedEnd();
+  }
+
+  // Keep adding batches while the bottom of the feed is within about a screen of the viewport.
+  function fill() {
+    let guard = 0;
+    while (shown < entries.length && $("#sentinel").getBoundingClientRect().top < innerHeight * 2 && guard++ < 20) more();
+    updateFeedEnd();
+  }
+
+  function updateFeedEnd() {
+    const end = els.end;
+    if (shown < entries.length) { end.hidden = true; return; }
+    if (waitingForData()) {
+      end.className = "feed-end loading";
+      end.textContent = els.q.value.trim() ? "Searching all sections…" : "Loading more stories…";
+    } else if (list.length > 6) {
+      end.className = "feed-end";
+      end.textContent = `You're all caught up · ${list.length} stories`;
+    } else { end.hidden = true; return; }
+    end.hidden = false;
   }
 
   function card(it, i, isLead) {
@@ -286,7 +366,7 @@
     const when = mode === "archive" || it._day ? shortDate(it) : ago(it.published);
     const lang = langOf[it.category];
     return `
-      <article class="card${isLead ? " lead" : ""}${readSet.has(it.link) ? " read" : ""}" data-i="${i}" data-c="${colorFor(it.category)}"${lang ? ` lang="${esc(lang)}"` : ""}>
+      <article class="card${isLead ? " lead" : ""}${readSet.has(key(it)) ? " read" : ""}" data-i="${i}" data-c="${colorFor(it.category)}"${lang ? ` lang="${esc(lang)}"` : ""}>
         <div class="thumb">${img}${showChip ? `<span class="chip">${esc(it.category)}</span>` : ""}${fresh ? '<span class="new">New</span>' : ""}</div>
         <div class="body">
           <h2 class="title"><a class="hit" href="${esc(safeUrl(it.link))}" target="_blank" rel="noopener noreferrer">${esc(it.title)}</a></h2>
@@ -315,8 +395,8 @@
   }, true);
 
   function markRead(it, cardEl) {
-    if (readSet.has(it.link)) return;
-    readSet.add(it.link);
+    if (readSet.has(key(it))) return;
+    readSet.add(key(it));
     persistRead();
     if (cardEl) {
       cardEl.classList.add("read");
@@ -375,7 +455,7 @@
     m.innerHTML = `
       <button type="button" role="menuitem" data-a="share">${ICON.share}<span>Share</span></button>
       <button type="button" role="menuitem" data-a="copy">${ICON.link}<span>Copy link</span></button>
-      <button type="button" role="menuitem" data-a="read">${ICON.check}<span>${readSet.has(it.link) ? "Mark as unread" : "Mark as read"}</span></button>
+      <button type="button" role="menuitem" data-a="read">${ICON.check}<span>${readSet.has(key(it)) ? "Mark as unread" : "Mark as read"}</span></button>
       <button type="button" role="menuitem" data-a="mute">${ICON.eyeOff}<span>Hide stories from ${esc(it.source)}</span></button>`;
     m.hidden = false;
     const r = btn.getBoundingClientRect();
@@ -413,8 +493,8 @@
         copyLink(url);
         break;
       case "read":
-        if (readSet.has(it.link)) {
-          readSet.delete(it.link);
+        if (readSet.has(key(it))) {
+          readSet.delete(key(it));
           persistRead();
           cardEl.classList.remove("read");
           renderTabs();
@@ -446,7 +526,12 @@
       render();
     }, 150);
   });
-  new IntersectionObserver((e) => e[0].isIntersecting && more(), { rootMargin: "800px" }).observe($("#sentinel"));
+  new IntersectionObserver((e) => { if (e[0].isIntersecting) { more(); fill(); } }, { rootMargin: "100% 0px" }).observe($("#sentinel"));
+
+  // Back-to-top button once you've scrolled a couple of screens down.
+  const topBtn = $("#toTop");
+  addEventListener("scroll", () => { topBtn.hidden = scrollY < innerHeight * 2; }, { passive: true });
+  topBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 
   addEventListener("hashchange", () => {
     const id = location.hash.slice(1);

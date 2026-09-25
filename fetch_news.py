@@ -6,9 +6,11 @@ Standard library only, so it runs anywhere with Python 3.9+:
     python3 fetch_news.py --store store   # also update the archive + feed health (GitHub Actions)
 """
 import argparse
+import hashlib
 import html
 import json
 import re
+import shutil
 import sys
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -130,6 +132,11 @@ def source_name(url):
     return host
 
 
+def story_id(link):
+    """Short stable id for a story, so the page can track new/read stories without every section loaded."""
+    return hashlib.sha1(link.encode()).hexdigest()[:10]
+
+
 def parse_feed(url, data):
     root = ET.fromstring(data)
     items = []
@@ -175,6 +182,7 @@ def parse_feed(url, data):
         if img and img.startswith("http://"):
             img = "https://" + img[len("http://"):]
         items.append({
+            "id": story_id(link),
             "title": title,
             "link": link,
             "summary": summary,
@@ -354,14 +362,28 @@ def main():
     for c in categories:
         sections.append({"id": c["id"], "name": c["name"], "items": c["items"], **({"lang": c["lang"]} if c["lang"] else {})})
 
+    # Lazy loading: data.js carries only the first stories of each section (fast first paint) plus every
+    # story id (for "new" counts); each section's full list is in site/data/<id>.json, fetched on demand.
+    first = settings.get("first_load", 20)
+    data_dir = OUT.parent / "data"
+    if data_dir.exists():
+        shutil.rmtree(data_dir)
+    data_dir.mkdir(parents=True)
+    compact = {"ensure_ascii": False, "separators": (",", ":")}
+    for sec in sections:
+        (data_dir / f"{sec['id']}.json").write_text(json.dumps({"id": sec["id"], "items": sec["items"]}, **compact))
     data = {
         "generated": now.isoformat(),
         "weather": weather.fetch_weather(cfg.get("weather"), http_get),
         "archive": bool(args.store),
-        "categories": sections,
+        "categories": [
+            {**{k: v for k, v in sec.items() if k != "items"},
+             "total": len(sec["items"]), "ids": [it["id"] for it in sec["items"]], "items": sec["items"][:first]}
+            for sec in sections
+        ],
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text("window.NEWS_DATA = " + json.dumps(data, ensure_ascii=False) + ";\n")
+    OUT.write_text("window.NEWS_DATA = " + json.dumps(data, **compact) + ";\n")
     # Tiny file the page polls to learn that a newer update has been published.
     (OUT.parent / "version.json").write_text(json.dumps({"generated": data["generated"]}) + "\n")
     total = sum(len(c["items"]) for c in categories)

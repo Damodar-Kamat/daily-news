@@ -197,8 +197,8 @@
   ],
   "settings": {
     "max_age_hours": 48,
-    "per_category": 60,
-    "all_tab_limit": 200,
+    "per_category": 200,
+    "all_tab_limit": 300,
     "fetch_missing_images": true,
     "block_sources": [
       "LinkedIn",
@@ -220,7 +220,8 @@
       "limit": 30,
       "max_age_hours": 24
     },
-    "archive_days": 30
+    "archive_days": 30,
+    "first_load": 20
   },
   "weather": {
     "city": "Bengaluru",

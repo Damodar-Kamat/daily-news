@@ -216,6 +216,17 @@ h1 { margin: 0; font: 700 22px/1.1 Fraunces, Georgia, serif; letter-spacing: -.0
 .card.lead .row { margin-top: 6px; }
 
 .empty { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 60px 0; }
+.feed-end { text-align: center; color: var(--muted); font-size: 13px; padding: 4px 16px 24px; }
+.feed-end.loading::before {
+  content: ""; display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px;
+  border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite;
+}
+.to-top {
+  position: fixed; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 20;
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); cursor: pointer;
+  background: var(--surface); color: var(--text); box-shadow: var(--shadow); display: grid; place-items: center;
+}
+.to-top svg { width: 20px; height: 20px; }
 .sentinel { height: 1px; }
 .past-wrap { text-align: center; padding: 0 16px 8px; }
 

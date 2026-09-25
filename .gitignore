@@ -1,6 +1,7 @@
 site/data.js
 site/version.json
 site/archive/
+site/data/
 store/
 .claude/
 __pycache__/
