@@ -5,9 +5,9 @@
       "name": "India",
       "feeds": [
         "https://www.thehindu.com/news/national/feeder/default.rss",
-        "https://indianexpress.com/section/india/feed/",
         "https://feeds.feedburner.com/ndtvnews-india-news",
-        "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms"
+        "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms",
+        "https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml"
       ]
     },
     {
@@ -60,8 +60,7 @@
       "max_age_hours": 96,
       "scan": [
         "https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml",
-        "https://www.indiatoday.in/rss/1206514",
-        "https://www.firstpost.com/commonfeeds/v1/mfp/rss/india.xml"
+        "https://www.indiatoday.in/rss/1206514"
       ]
     },
     {
@@ -70,9 +69,10 @@
       "feeds": [
         "https://feeds.bbci.co.uk/news/world/rss.xml",
         "https://www.thehindu.com/news/international/feeder/default.rss",
-        "https://indianexpress.com/section/world/feed/",
         "https://www.aljazeera.com/xml/rss/all.xml",
-        "https://feeds.feedburner.com/ndtvnews-world-news"
+        "https://feeds.feedburner.com/ndtvnews-world-news",
+        "https://www.hindustantimes.com/feeds/rss/world-news/rssfeed.xml",
+        "https://www.indiatoday.in/rss/1206577"
       ]
     },
     {
@@ -81,8 +81,8 @@
       "feeds": [
         "https://www.livemint.com/rss/markets",
         "https://www.thehindu.com/business/feeder/default.rss",
-        "https://indianexpress.com/section/business/feed/",
-        "https://feeds.bbci.co.uk/news/business/rss.xml"
+        "https://feeds.bbci.co.uk/news/business/rss.xml",
+        "https://www.hindustantimes.com/feeds/rss/business/rssfeed.xml"
       ]
     },
     {
@@ -91,9 +91,11 @@
       "feeds": [
         "https://www.espncricinfo.com/rss/content/story/feeds/0.xml",
         "https://www.thehindu.com/sport/feeder/default.rss",
-        "https://indianexpress.com/section/sports/feed/",
         "https://feeds.bbci.co.uk/sport/rss.xml",
-        "https://feeds.feedburner.com/ndtvsports-latest"
+        "https://feeds.feedburner.com/ndtvsports-latest",
+        "https://www.hindustantimes.com/feeds/rss/cricket/rssfeed.xml",
+        "https://www.hindustantimes.com/feeds/rss/sports/rssfeed.xml",
+        "https://www.indiatoday.in/rss/1206550"
       ]
     },
     {
@@ -104,8 +106,10 @@
         "https://www.theverge.com/rss/index.xml",
         "https://feeds.arstechnica.com/arstechnica/index",
         "https://feeds.feedburner.com/gadgets360-latest",
-        "https://indianexpress.com/section/technology/feed/",
-        "https://feeds.bbci.co.uk/news/technology/rss.xml"
+        "https://feeds.bbci.co.uk/news/technology/rss.xml",
+        "https://www.hindustantimes.com/feeds/rss/technology/rssfeed.xml",
+        "https://www.livemint.com/rss/technology",
+        "https://www.indiatoday.in/rss/1206688"
       ]
     },
     {
@@ -122,7 +126,8 @@
       "name": "Entertainment",
       "feeds": [
         "https://www.thehindu.com/entertainment/feeder/default.rss",
-        "https://indianexpress.com/section/entertainment/feed/"
+        "https://www.hindustantimes.com/feeds/rss/entertainment/rssfeed.xml",
+        "https://www.bollywoodhungama.com/feed/"
       ]
     },
     {

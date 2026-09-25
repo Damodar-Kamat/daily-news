@@ -89,7 +89,7 @@ def source_name(url):
         "sciencedaily.com": "ScienceDaily", "ndtv.com": "NDTV", "gadgets360.com": "Gadgets 360",
         "sports.ndtv.com": "NDTV Sports", "indiandefensenews.in": "Indian Defence News",
         "defencexp.com": "DefenceXP", "firstpost.com": "Firstpost", "hindustantimes.com": "Hindustan Times",
-        "indiatoday.in": "India Today", "theweek.in": "The Week",
+        "indiatoday.in": "India Today", "theweek.in": "The Week", "bollywoodhungama.com": "Bollywood Hungama",
     }
     for k, v in known.items():
         if host.endswith(k):
