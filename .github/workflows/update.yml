@@ -2,13 +2,13 @@ name: Update news
 
 on:
   schedule:
-    # Times are UTC. 00:30 UTC = 6:00 AM IST, 12:30 UTC = 6:00 PM IST.
-    - cron: "30 0 * * *"
-    - cron: "30 12 * * *"
-  workflow_dispatch:   # "Run workflow" button in the Actions tab
+    # Every hour at :15 (UTC). GitHub's servers are busiest on the hour, so :15 starts more reliably.
+    - cron: "15 * * * *"
+  workflow_dispatch:   # "Run workflow" button in the Actions tab, and the ⟳ button on the page
   push:
     branches: [main]
 
+# Least privilege: the job can only read the code and publish to Pages.
 permissions:
   contents: read
   pages: write
@@ -21,19 +21,24 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # Actions are pinned to exact commits (not movable tags) so a compromised
+      # upstream release can't change what runs here.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Fetch feeds
         run: python fetch_news.py
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

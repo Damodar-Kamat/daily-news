@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <!-- Only our own scripts may run; the only outside endpoint the page may call is api.github.com. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self' https://api.github.com; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Daily Brief</title>
   <meta name="description" content="Today's news from India and the world, in one place.">
@@ -27,16 +30,50 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
           <input id="q" type="search" placeholder="Search headlines" autocomplete="off">
         </label>
+        <button id="refresh" class="icon-btn" title="Fetch latest news" aria-label="Fetch latest news">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+        </button>
         <button id="theme" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
         </button>
       </div>
     </div>
     <nav class="tabs" id="tabs" role="tablist" aria-label="Sections"></nav>
+    <button id="banner" class="banner" hidden>New stories are available · Tap to load</button>
   </header>
 
   <main id="feed" class="feed" aria-live="polite"></main>
   <div id="sentinel" class="sentinel"></div>
+
+  <footer class="foot">
+    Headlines from public RSS feeds. Articles open on the publisher's site.
+    · <a href="#" id="refreshSettings">Refresh button settings</a>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="tokenDlg" class="dlg" aria-labelledby="dlgTitle">
+    <h2 id="dlgTitle">Connect the refresh button</h2>
+    <p>The ⟳ button asks GitHub to fetch fresh news right now. It needs a GitHub token that can
+      <strong>only run the update job</strong> of this one repository.</p>
+    <ol>
+      <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">GitHub → New fine-grained token</a>.</li>
+      <li>Name it <em>daily-news refresh</em> and pick an expiry.</li>
+      <li>Repository access: <strong>Only select repositories → daily-news</strong>.</li>
+      <li>Permissions → Repository → <strong>Actions: Read and write</strong>. Leave everything else as “No access”.</li>
+      <li>Generate, copy the token (starts with <code>github_pat_</code>) and paste it below.</li>
+    </ol>
+    <p class="note">It is saved only in this browser on this device and sent only to api.github.com.
+      You can delete it anytime here or on GitHub.</p>
+    <input id="tokenInput" type="password" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="GitHub token">
+    <p id="tokenErr" class="err" role="alert"></p>
+    <div class="dlg-actions">
+      <button id="tokenForget" class="link-btn" type="button" hidden>Remove saved token</button>
+      <span class="spacer"></span>
+      <button id="tokenCancel" class="btn" type="button">Cancel</button>
+      <button id="tokenSave" class="btn primary" type="button">Save &amp; refresh</button>
+    </div>
+  </dialog>
 
   <script src="data.js"></script>
   <script src="app.js"></script>

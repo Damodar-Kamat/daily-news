@@ -28,10 +28,30 @@ NS = {
 }
 
 
-def http_get(url, timeout=15, limit=None):
+MAX_BYTES = 5_000_000  # no feed or page we read should ever be bigger than this
+
+
+def http_get(url, timeout=15, limit=MAX_BYTES):
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "*/*"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read(limit) if limit else r.read()
+        return r.read(limit)
+
+
+def safe_url(u):
+    """Return u only if it is a plain http(s) URL; images are upgraded to https.
+
+    Feeds are untrusted input: a javascript: or data: link must never reach the page.
+    """
+    u = (u or "").strip()
+    if u.startswith("//"):
+        u = "https:" + u
+    try:
+        parts = urlparse(u)
+    except ValueError:
+        return None
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        return None
+    return u
 
 
 def text(el):
@@ -133,12 +153,15 @@ def parse_feed(url, data):
         summary = strip_html(raw)
         if len(summary) > 220:
             summary = summary[:217].rsplit(" ", 1)[0] + "…"
-        img = find_image(it, raw)
-        if img and img.startswith("//"):
-            img = "https:" + img
+        link = safe_url(link)
+        if not link:
+            continue
+        img = safe_url(find_image(it, raw))
+        if img and img.startswith("http://"):
+            img = "https://" + img[len("http://"):]
         items.append({
             "title": title,
-            "link": link.strip(),
+            "link": link,
             "summary": summary,
             "image": img,
             "source": source or source_name(link) or channel_title,
@@ -168,7 +191,10 @@ def fetch_og_image(link):
     ):
         m = re.search(pat, page)
         if m:
-            return html.unescape(m.group(1))
+            img = safe_url(html.unescape(m.group(1)))
+            if img and img.startswith("http://"):
+                img = "https://" + img[len("http://"):]
+            return img
     return None
 
 
@@ -277,6 +303,8 @@ def main():
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("window.NEWS_DATA = " + json.dumps(data, ensure_ascii=False) + ";\n")
+    # Tiny file the page polls to learn that a newer update has been published.
+    (OUT.parent / "version.json").write_text(json.dumps({"generated": data["generated"]}) + "\n")
     total = sum(len(c["items"]) for c in categories)
     print(f"Wrote {OUT.relative_to(ROOT)}: {total} stories across {len(categories)} sections", file=sys.stderr)
 

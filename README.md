@@ -6,7 +6,7 @@ Entertainment, Health). It is built from free public RSS feeds, with no API keys
 - `feeds.json`: the sections and their feeds. Edit this to add or remove sources.
 - `fetch_news.py`: downloads the feeds and writes `site/data.js`. Uses only the Python standard library.
 - `site/`: the web page (`index.html`, `style.css`, `app.js`).
-- `.github/workflows/update.yml`: rebuilds and publishes the page to GitHub Pages at 6 AM and 6 PM IST.
+- `.github/workflows/update.yml`: rebuilds and publishes the page to GitHub Pages every hour (at :15).
 
 ## Run it on your Mac
 
@@ -32,6 +32,37 @@ Then open http://localhost:8765.
 
 GitHub pauses scheduled workflows in repos with no activity for 60 days. If that happens, it emails
 you and you re-enable the workflow with one click in the Actions tab.
+
+## The ⟳ refresh button
+
+Tapping ⟳ on the page starts the GitHub job right away and reloads the page when fresh news is live (about a minute).
+The first time, it asks for a GitHub **fine-grained token**:
+
+1. Open https://github.com/settings/personal-access-tokens/new
+2. Name: `daily-news refresh`. Pick an expiry (for example 1 year).
+3. Repository access: **Only select repositories → daily-news**
+4. Permissions → Repository permissions → **Actions: Read and write**. Leave everything else as "No access".
+5. Generate, copy the `github_pat_…` token and paste it into the page.
+
+It is saved only in that browser on that device. Remove it via "Refresh button settings" at the bottom of the page,
+or delete it on GitHub (Settings → Developer settings → Personal access tokens).
+
+The page also checks every 5 minutes, and whenever you return to the tab, for a newer update, and shows a
+"New stories are available" banner.
+
+## Security
+
+- **Least-privilege token**: fine-grained, one repo, Actions only. Full-access (`ghp_`/`gho_`) tokens are refused.
+  The worst a leaked token can do is run the news update.
+- **The token never leaves your device** except to `api.github.com`. It is not in the repository or the published site.
+- **Untrusted feed data**: every headline, summary and source is HTML-escaped. Links and images must be plain
+  `http(s)` URLs (checked in both `fetch_news.py` and `app.js`). There are no inline event handlers.
+- **Content-Security-Policy** (in `index.html`): only this site's own scripts run, and the only outside
+  endpoint the page can call is `api.github.com`.
+- **No clickjacking**: the refresh button and token dialog are disabled if the page is shown inside another site's frame.
+- **Workflow**: minimal permissions, actions pinned to exact commit SHAs, credentials not persisted, 10-minute timeout.
+- Note: every GitHub Pages site you publish under `damodar-kamat.github.io` shares browser storage. Only publish
+  pages you trust there, or the saved token could be read by them.
 
 ## Customising
 
