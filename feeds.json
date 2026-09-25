@@ -1,0 +1,157 @@
+{
+  "categories": [
+    {
+      "id": "india",
+      "name": "India",
+      "feeds": [
+        "https://www.thehindu.com/news/national/feeder/default.rss",
+        "https://indianexpress.com/section/india/feed/",
+        "https://feeds.feedburner.com/ndtvnews-india-news",
+        "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms"
+      ]
+    },
+    {
+      "id": "defence",
+      "name": "Defence",
+      "feeds": [
+        "https://economictimes.indiatimes.com/news/defence/rssfeeds/46687796.cms",
+        "https://www.indiandefensenews.in/feeds/posts/default?alt=rss",
+        "https://theprint.in/category/defence/feed/",
+        "https://www.defencexp.com/feed/",
+        "https://idrw.org/feed/",
+        {
+          "url": "https://news.google.com/rss/search?q=%22Indian+Army%22+OR+%22Indian+Navy%22+OR+%22Indian+Air+Force%22+OR+DRDO+when:2d&hl=en-IN&gl=IN&ceid=IN:en",
+          "limit": 12
+        }
+      ],
+      "keywords": [
+        "indian army",
+        "indian navy",
+        "indian air force",
+        "IAF",
+        "DRDO",
+        "HAL",
+        "defence",
+        "defense",
+        "Rajnath",
+        "missile",
+        "fighter jet",
+        "warship",
+        "submarine",
+        "BrahMos",
+        "Tejas",
+        "Agniveer",
+        "LoC",
+        "LAC",
+        "military",
+        "armed forces",
+        "coast guard",
+        "CDS",
+        "army chief",
+        "navy chief",
+        "air chief",
+        "soldier",
+        "jawan",
+        "BSF",
+        "CRPF",
+        "ITBP",
+        "Rafale"
+      ],
+      "max_age_hours": 96,
+      "scan": [
+        "https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml",
+        "https://www.indiatoday.in/rss/1206514",
+        "https://www.firstpost.com/commonfeeds/v1/mfp/rss/india.xml"
+      ]
+    },
+    {
+      "id": "world",
+      "name": "World",
+      "feeds": [
+        "https://feeds.bbci.co.uk/news/world/rss.xml",
+        "https://www.thehindu.com/news/international/feeder/default.rss",
+        "https://indianexpress.com/section/world/feed/",
+        "https://www.aljazeera.com/xml/rss/all.xml",
+        "https://feeds.feedburner.com/ndtvnews-world-news"
+      ]
+    },
+    {
+      "id": "business",
+      "name": "Business",
+      "feeds": [
+        "https://www.livemint.com/rss/markets",
+        "https://www.thehindu.com/business/feeder/default.rss",
+        "https://indianexpress.com/section/business/feed/",
+        "https://feeds.bbci.co.uk/news/business/rss.xml"
+      ]
+    },
+    {
+      "id": "sports",
+      "name": "Sports",
+      "feeds": [
+        "https://www.espncricinfo.com/rss/content/story/feeds/0.xml",
+        "https://www.thehindu.com/sport/feeder/default.rss",
+        "https://indianexpress.com/section/sports/feed/",
+        "https://feeds.bbci.co.uk/sport/rss.xml",
+        "https://feeds.feedburner.com/ndtvsports-latest"
+      ]
+    },
+    {
+      "id": "tech",
+      "name": "Tech",
+      "feeds": [
+        "https://techcrunch.com/feed/",
+        "https://www.theverge.com/rss/index.xml",
+        "https://feeds.arstechnica.com/arstechnica/index",
+        "https://feeds.feedburner.com/gadgets360-latest",
+        "https://indianexpress.com/section/technology/feed/",
+        "https://feeds.bbci.co.uk/news/technology/rss.xml"
+      ]
+    },
+    {
+      "id": "science",
+      "name": "Science",
+      "feeds": [
+        "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+        "https://www.thehindu.com/sci-tech/science/feeder/default.rss",
+        "https://www.sciencedaily.com/rss/top/science.xml"
+      ]
+    },
+    {
+      "id": "entertainment",
+      "name": "Entertainment",
+      "feeds": [
+        "https://www.thehindu.com/entertainment/feeder/default.rss",
+        "https://indianexpress.com/section/entertainment/feed/"
+      ]
+    },
+    {
+      "id": "health",
+      "name": "Health",
+      "feeds": [
+        "https://feeds.bbci.co.uk/news/health/rss.xml"
+      ]
+    }
+  ],
+  "settings": {
+    "max_age_hours": 48,
+    "per_category": 60,
+    "all_tab_limit": 200,
+    "fetch_missing_images": true,
+    "block_sources": [
+      "LinkedIn",
+      "Utkarsh Classes",
+      "Manorama Yearbook",
+      "KollegeApply News",
+      "Indianmasterminds",
+      "thequantuminsider.com",
+      "Testbook",
+      "Adda247",
+      "Jagran Josh",
+      "YouTube",
+      "Facebook",
+      "Instagram",
+      "X"
+    ]
+  }
+}
