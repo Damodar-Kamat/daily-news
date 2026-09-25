@@ -3,13 +3,18 @@
 <head>
   <meta charset="utf-8">
   <!-- Only our own scripts may run; the only outside endpoint the page may call is api.github.com. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self' https://api.github.com; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self' https://api.github.com; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Daily Brief</title>
   <meta name="description" content="Today's news from India and the world, in one place.">
   <meta name="theme-color" content="#0e1116">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23ff6a3d'/><path d='M18 18h16a14 14 0 0 1 0 28H18z' fill='white'/></svg>">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-title" content="Daily Brief">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -28,10 +33,13 @@
       <div class="actions">
         <label class="search">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input id="q" type="search" placeholder="Search headlines" autocomplete="off">
+          <input id="q" type="search" placeholder="Search headlines" autocomplete="off" aria-label="Search headlines">
         </label>
         <button id="refresh" class="icon-btn" title="Fetch latest news" aria-label="Fetch latest news">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+        </button>
+        <button id="prefsBtn" class="icon-btn" title="Personalise" aria-label="Personalise">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
         </button>
         <button id="theme" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
@@ -39,18 +47,55 @@
       </div>
     </div>
     <nav class="tabs" id="tabs" role="tablist" aria-label="Sections"></nav>
+    <div id="modebar" class="modebar" hidden>
+      <span id="modeText">Viewing a past day</span>
+      <button id="modeExit" class="btn small" type="button">Back to today</button>
+    </div>
     <button id="banner" class="banner" hidden>New stories are available · Tap to load</button>
   </header>
 
+  <section id="weather" class="wx" aria-label="Weather" hidden></section>
   <main id="feed" class="feed" aria-live="polite"></main>
   <div id="sentinel" class="sentinel"></div>
+  <div class="past-wrap"><button id="pastSearch" class="btn" type="button" hidden>Search the last 30 days too</button></div>
 
   <footer class="foot">
-    Headlines from public RSS feeds. Articles open on the publisher's site.
-    · <a href="#" id="refreshSettings">Refresh button settings</a>
+    Headlines from public RSS feeds; articles open on the publisher's site. Weather by Open-Meteo.
   </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="menu" class="menu" role="menu" hidden></div>
+
+  <dialog id="prefsDlg" class="dlg" aria-labelledby="prefsTitle">
+    <h2 id="prefsTitle">Personalise</h2>
+    <h3>Sections</h3>
+    <p class="note">Untick to hide a section. Use the arrows to change the order.</p>
+    <ul id="secList" class="sec-list"></ul>
+    <h3>Hidden sources and words</h3>
+    <div id="muteChips" class="chips"></div>
+    <div class="add-row">
+      <input id="muteInput" type="text" placeholder="Hide stories containing…" autocomplete="off" aria-label="Word or phrase to hide">
+      <button id="muteAdd" class="btn" type="button">Hide</button>
+    </div>
+    <h3>More</h3>
+    <div class="btn-row">
+      <button id="clearRead" class="btn" type="button">Clear reading history</button>
+      <button id="tokenOpen" class="btn" type="button">Refresh button token…</button>
+    </div>
+    <p class="note">These settings are saved only on this device.</p>
+    <div class="dlg-actions">
+      <button id="prefsReset" class="link-btn" type="button">Reset sections &amp; hidden items</button>
+      <span class="spacer"></span>
+      <button id="prefsDone" class="btn primary" type="button">Done</button>
+    </div>
+  </dialog>
+
+  <dialog id="archiveDlg" class="dlg" aria-labelledby="archiveTitle">
+    <h2 id="archiveTitle">Past days</h2>
+    <p class="note">Every story from the last 30 days, day by day.</p>
+    <div id="dayList" class="day-list"></div>
+    <div class="dlg-actions"><span class="spacer"></span><button id="archiveClose" class="btn" type="button">Close</button></div>
+  </dialog>
 
   <dialog id="tokenDlg" class="dlg" aria-labelledby="dlgTitle">
     <h2 id="dlgTitle">Connect the refresh button</h2>

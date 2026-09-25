@@ -1,12 +1,13 @@
 (() => {
+  "use strict";
   const DATA = window.NEWS_DATA;
   const PAGE = 24;
   const DEFAULT_TAB = "tech"; // section shown when the page is opened without a #section in the URL
   const COLORS = {
-    all: "#ff6a3d", india: "#ff9933", defence: "#4f7942", world: "#3b82f6", business: "#0ea5a4",
-    sports: "#e11d48", tech: "#8b5cf6", science: "#06b6d4", entertainment: "#ec4899", health: "#22c55e",
+    all: "#ff6a3d", top: "#f59e0b", india: "#ff9933", bengaluru: "#0891b2", defence: "#4f7942",
+    world: "#3b82f6", business: "#0ea5a4", sports: "#e11d48", tech: "#8b5cf6", science: "#06b6d4",
+    entertainment: "#ec4899", health: "#22c55e", hindi: "#c2410c", kannada: "#ca8a04", saved: "#64748b",
   };
-  const colorFor = (name) => COLORS[(name || "").toLowerCase()] || "#ff6a3d";
 
   // ⟳ button: which GitHub workflow to start. Fixed here on purpose (never read from the URL).
   const REPO = "Damodar-Kamat/daily-news";
@@ -14,14 +15,30 @@
   const TOKEN_KEY = "gh_refresh_token";
   const TOKEN_RE = /^github_pat_[A-Za-z0-9_]{40,255}$/; // fine-grained tokens only
 
-  const $ = (s) => document.querySelector(s);
-  const tabsEl = $("#tabs"), feedEl = $("#feed"), metaEl = $("#meta"), qEl = $("#q");
+  const ICON = {
+    bookmark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg>',
+    dots: '<svg viewBox="0 0 24 24" aria-hidden="true" class="fill"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
+    share: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>',
+    link: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
+    check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>',
+    eyeOff: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c5 0 9 5 9 7a11 11 0 0 1-2.2 3.2M6.6 6.6C4.3 8 3 10.3 3 12c0 2 4 7 9 7a9.6 9.6 0 0 0 4.4-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>',
+    calendar: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  };
+
+  const $ = (s, r = document) => r.querySelector(s);
+  const els = {
+    tabs: $("#tabs"), feed: $("#feed"), meta: $("#meta"), q: $("#q"), wx: $("#weather"),
+    modebar: $("#modebar"), toast: $("#toast"), menu: $("#menu"), past: $("#pastSearch"),
+  };
 
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch {} },
     del(k) { try { localStorage.removeItem(k); } catch {} },
+    json(k, fallback) { try { return JSON.parse(localStorage.getItem(k)) ?? fallback; } catch { return fallback; } },
+    setJson(k, v) { this.set(k, JSON.stringify(v)); },
   };
+  const strList = (v, max) => (Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.length <= 300).slice(0, max) : []);
 
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   // Feed data is untrusted: only plain http(s) URLs may become links or images.
@@ -38,6 +55,22 @@
     el.removeAttribute("data-c");
   });
 
+  function toast(msg, { kind = "", action, onAction, sticky } = {}) {
+    const t = els.toast;
+    t.replaceChildren(document.createTextNode(msg));
+    if (action) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "toast-btn";
+      b.textContent = action;
+      b.addEventListener("click", () => { t.classList.remove("show"); onAction(); });
+      t.append(b);
+    }
+    t.className = "toast show " + kind;
+    clearTimeout(toast.t);
+    if (!sticky) toast.t = setTimeout(() => t.classList.remove("show"), action ? 8000 : 5000);
+  }
+
   // Theme toggle (auto by default, remembers manual choice)
   const savedTheme = store.get("theme");
   if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
@@ -50,13 +83,21 @@
     store.set("theme", next);
   });
 
+  // Installable app + offline reading.
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+
+  let openTokenDialog = () => {};
   setupRefresh(DATA ? DATA.generated : "");
 
   if (!DATA) {
-    metaEl.textContent = "No data yet";
-    feedEl.innerHTML = '<p class="empty">Run <code>python3 fetch_news.py</code> to fetch today\'s news.</p>';
+    els.meta.textContent = "No data yet";
+    els.feed.innerHTML = '<p class="empty">Run <code>python3 fetch_news.py</code> to fetch today\'s news.</p>';
     return;
   }
+
+  // ───────────────────────── helpers ─────────────────────────
 
   const ago = (iso) => {
     if (!iso) return "";
@@ -66,30 +107,205 @@
     if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
     return `${Math.floor(s / 86400)}d ago`;
   };
+  const dayLabel = (isoDate, opts = { weekday: "long", day: "numeric", month: "long" }) =>
+    new Date(isoDate + "T12:00:00+05:30").toLocaleDateString(undefined, opts);
+  const shortDate = (it) => it.published
+    ? new Date(it.published).toLocaleDateString(undefined, { day: "numeric", month: "short" })
+    : it._day ? dayLabel(it._day, { day: "numeric", month: "short" }) : "";
 
   const today = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
-  const updateMeta = () => (metaEl.textContent = `${today} · updated ${ago(DATA.generated)}`);
+  const updateMeta = () => {
+    els.meta.textContent = `${today} · updated ${ago(DATA.generated)}${navigator.onLine ? "" : " · offline"}`;
+  };
   updateMeta();
   setInterval(updateMeta, 60_000);
+  addEventListener("online", updateMeta);
+  addEventListener("offline", updateMeta);
 
-  const cats = DATA.categories;
-  const ids = cats.map((c) => c.id);
-  let active = (location.hash.slice(1) && ids.includes(location.hash.slice(1)) && location.hash.slice(1))
-    || (ids.includes(DEFAULT_TAB) && DEFAULT_TAB) || "all";
-  let list = [], shown = 0;
+  // ───────────────────────── per-device state (localStorage) ─────────────────────────
 
-  tabsEl.innerHTML = cats.map((c) => `
-    <button class="tab" role="tab" data-id="${esc(c.id)}" data-c="${colorFor(c.id)}">
-      <span class="dot"></span>${esc(c.name)}<span class="count">${c.items.length}</span>
-    </button>`).join("");
-  paint(tabsEl);
-  tabsEl.addEventListener("click", (e) => {
+  const prefs = (() => {
+    const p = store.json("prefs", {}) || {};
+    return {
+      order: strList(p.order, 50), hidden: strList(p.hidden, 50),
+      mutedSources: strList(p.mutedSources, 200), mutedWords: strList(p.mutedWords, 200),
+    };
+  })();
+  const savePrefs = () => store.setJson("prefs", prefs);
+
+  let saved = (store.json("saved", []) || [])
+    .filter((it) => it && typeof it.title === "string" && safeUrl(it.link)).slice(0, 300);
+  let savedLinks = new Set(saved.map((it) => it.link));
+  const persistSaved = () => { savedLinks = new Set(saved.map((it) => it.link)); store.setJson("saved", saved); };
+
+  const readSet = new Set(strList(store.json("read", []), 2000));
+  let readTimer;
+  const persistRead = () => {
+    clearTimeout(readTimer);
+    readTimer = setTimeout(() => store.setJson("read", [...readSet].slice(-1500)), 300);
+  };
+
+  // "New since last visit": a story is new if it wasn't in the news you were shown last time.
+  // (Tracking links rather than times means stories fetched by ⟳ still count as new.)
+  const prevSeen = new Set(strList(store.json("seenLinks", []), 3000));
+  const firstVisit = prevSeen.size === 0;
+  const stampVisit = () => store.setJson("seenLinks", [...new Set(DATA.categories.flatMap((c) => c.items.map((it) => it.link)))].slice(0, 3000));
+  addEventListener("pagehide", stampVisit);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) stampVisit(); });
+  const isNew = (it) => !firstVisit && !prevSeen.has(it.link) && !readSet.has(it.link);
+
+  let mutedSet = new Set(), muteRe = null;
+  function buildMute() {
+    mutedSet = new Set(prefs.mutedSources.map((s) => s.toLowerCase()));
+    const words = prefs.mutedWords.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    // Whole-word match that also works for Hindi/Kannada (JS \b is ASCII-only).
+    muteRe = words.length ? new RegExp(`(^|[^\\p{L}\\p{N}])(${words.join("|")})(?=$|[^\\p{L}\\p{N}])`, "iu") : null;
+  }
+  buildMute();
+  const visible = (it) => !mutedSet.has((it.source || "").toLowerCase()) && !(muteRe && muteRe.test(`${it.title} ${it.summary || ""}`));
+
+  // ───────────────────────── sections / tabs ─────────────────────────
+
+  const live = DATA.categories;
+  const nameToId = Object.fromEntries(live.map((c) => [c.name, c.id]));
+  const langOf = Object.fromEntries(live.filter((c) => c.lang).map((c) => [c.name, c.lang]));
+  const colorFor = (catName) => COLORS[nameToId[catName] || String(catName || "").toLowerCase()] || "#ff6a3d";
+
+  let mode = "live"; // "live" | "archive"
+  let archiveCats = null, liveActive = null;
+  let active = null, list = [], entries = [], shown = 0, leadOn = false, pastResults = null;
+
+  function allLiveTabs() {
+    const base = [...live, { id: "saved", name: "Saved", get items() { return saved; } }];
+    const pos = (t, i) => { const p = prefs.order.indexOf(t.id); return p === -1 ? 1000 + i : p; };
+    return base.map((t, i) => [pos(t, i), t]).sort((a, b) => a[0] - b[0]).map(([, t]) => t);
+  }
+  const currentTabs = () => (mode === "archive" ? archiveCats : allLiveTabs().filter((t) => !prefs.hidden.includes(t.id)));
+  const tabItems = (id) => (currentTabs().find((t) => t.id === id) || { items: [] }).items;
+
+  function renderTabs() {
+    const x = els.tabs.scrollLeft;
+    els.tabs.innerHTML = currentTabs().map((t) => {
+      const n = t.id === "saved" ? t.items.length : t.items.filter(visible).length;
+      const fresh = mode === "live" && t.id !== "saved" ? t.items.filter((it) => isNew(it) && visible(it)).length : 0;
+      return `<button class="tab" role="tab" data-id="${esc(t.id)}" data-c="${COLORS[t.id] || colorFor(t.name)}" aria-selected="${t.id === active}">
+        ${t.id === "saved" ? ICON.bookmark : '<span class="dot"></span>'}${esc(t.name)}<span class="count">${n}</span>${fresh ? `<span class="fresh" title="${fresh} new since your last visit">${fresh}</span>` : ""}
+      </button>`;
+    }).join("") + (mode === "live" && DATA.archive ? `<button class="tab ghost" id="pastBtn" type="button">${ICON.calendar}Past days</button>` : "");
+    paint(els.tabs);
+    els.tabs.scrollLeft = x;
+  }
+
+  els.tabs.addEventListener("click", (e) => {
+    if (e.target.closest("#pastBtn")) return openArchiveDialog();
     const b = e.target.closest(".tab");
     if (b) select(b.dataset.id, true);
   });
 
+  function select(id, userAction) {
+    const ids = currentTabs().map((t) => t.id);
+    if (!ids.includes(id)) id = ids.includes(DEFAULT_TAB) ? DEFAULT_TAB : ids[0];
+    active = id;
+    if (mode === "live") history.replaceState(null, "", "#" + id);
+    els.tabs.querySelectorAll(".tab[data-id]").forEach((b) => b.setAttribute("aria-selected", b.dataset.id === id));
+    // Centre the selected tab in the (horizontally scrollable) tab strip.
+    const b = els.tabs.querySelector(`[data-id="${CSS.escape(id)}"]`);
+    if (b) {
+      const left = b.getBoundingClientRect().left - els.tabs.getBoundingClientRect().left + els.tabs.scrollLeft;
+      els.tabs.scrollTo({ left: left - (els.tabs.clientWidth - b.offsetWidth) / 2, behavior: userAction ? "smooth" : "auto" });
+    }
+    if (userAction) {
+      els.q.value = "";
+      pastResults = null;
+      window.scrollTo({ top: 0 });
+    }
+    render();
+  }
+
+  // ───────────────────────── feed ─────────────────────────
+
+  const matches = (it, q) => `${it.title} ${it.summary || ""} ${it.source}`.toLowerCase().includes(q);
+  const uniqByLink = (arr) => { const s = new Set(); return arr.filter((it) => !s.has(it.link) && s.add(it.link)); };
+
+  function render() {
+    const q = els.q.value.trim().toLowerCase();
+    let items;
+    leadOn = false;
+    let divider = false;
+    if (q) {
+      const pool = mode === "archive" ? archiveCats[0].items.concat(...archiveCats.slice(1).map((c) => c.items))
+        : live.flatMap((c) => c.items).concat(saved);
+      items = uniqByLink(pool.concat(pastResults || [])).filter((it) => matches(it, q) && visible(it)).slice(0, 300);
+    } else {
+      items = tabItems(active);
+      if (active !== "saved") items = items.filter(visible);
+      leadOn = active !== "saved";
+      divider = mode === "live" && !["all", "top", "saved"].includes(active);
+    }
+    list = items.filter((it) => safeUrl(it.link));
+    if (leadOn) {
+      const li = list.findIndex((it) => it.image);
+      if (li > 0) list = [list[li], ...list.slice(0, li), ...list.slice(li + 1)];
+    }
+    entries = list.map((it, i) => ({ it, i }));
+    if (divider && !firstVisit) {
+      const firstOld = list.findIndex((it, i) => i > 0 && !isNew(it));
+      if (firstOld > 0 && list.slice(0, firstOld).some(isNew)) entries.splice(firstOld, 0, { divider: true });
+    }
+    els.feed.innerHTML = list.length ? "" : `<p class="empty">${
+      q ? `No stories matching “${esc(q)}”.`
+        : active === "saved" ? "Nothing saved yet. Tap the bookmark on any story to keep it here."
+          : "No stories here right now."}</p>`;
+    shown = 0;
+    more();
+    els.past.hidden = !(q && DATA.archive && !pastResults);
+    els.past.disabled = false;
+    els.past.textContent = "Search the last 30 days too";
+  }
+
+  function more() {
+    if (shown >= entries.length) return;
+    const chunk = entries.slice(shown, shown + PAGE);
+    els.feed.insertAdjacentHTML("beforeend", chunk.map((e) => (e.divider
+      ? '<div class="divider" role="separator"><span>Earlier stories</span></div>'
+      : card(e.it, e.i, leadOn && e.i === 0))).join(""));
+    paint(els.feed);
+    shown += chunk.length;
+  }
+
+  function card(it, i, isLead) {
+    const label = esc(it.source || it.category || "News");
+    const imgUrl = safeUrl(it.image);
+    const img = imgUrl
+      ? `<img src="${esc(imgUrl)}" alt="" loading="${i < 4 ? "eager" : "lazy"}" decoding="async" referrerpolicy="no-referrer" data-label="${label}">`
+      : `<div class="ph">${label}</div>`;
+    const showChip = isLead || ["all", "top", "saved"].includes(active) || els.q.value.trim();
+    const fresh = mode === "live" && isNew(it);
+    const isSaved = savedLinks.has(it.link);
+    const also = Array.isArray(it.also) ? it.also.filter((a) => a && safeUrl(a.link)) : [];
+    const when = mode === "archive" || it._day ? shortDate(it) : ago(it.published);
+    const lang = langOf[it.category];
+    return `
+      <article class="card${isLead ? " lead" : ""}${readSet.has(it.link) ? " read" : ""}" data-i="${i}" data-c="${colorFor(it.category)}"${lang ? ` lang="${esc(lang)}"` : ""}>
+        <div class="thumb">${img}${showChip ? `<span class="chip">${esc(it.category)}</span>` : ""}${fresh ? '<span class="new">New</span>' : ""}</div>
+        <div class="body">
+          <h2 class="title"><a class="hit" href="${esc(safeUrl(it.link))}" target="_blank" rel="noopener noreferrer">${esc(it.title)}</a></h2>
+          ${it.summary ? `<p class="summary">${esc(it.summary)}</p>` : ""}
+          <div class="row">
+            <span class="src"><b>${esc(it.source)}</b>${when ? `<span> · ${esc(when)}</span>` : ""}</span>
+            <span class="acts">
+              ${also.length ? `<button class="cov" type="button" aria-expanded="false" title="Other outlets covering this story">${also.length + 1} sources</button>` : ""}
+              <button class="act save" type="button" aria-pressed="${isSaved}" aria-label="${isSaved ? "Remove from saved" : "Save for later"}" title="${isSaved ? "Saved" : "Save for later"}">${ICON.bookmark}</button>
+              <button class="act more" type="button" aria-haspopup="menu" aria-label="More options" title="More">${ICON.dots}</button>
+            </span>
+          </div>
+          ${also.length ? `<ul class="also" hidden>${also.map((a) => `<li><a href="${esc(safeUrl(a.link))}" target="_blank" rel="noopener noreferrer"><b>${esc(a.source)}</b> ${esc(a.title)}</a></li>`).join("")}</ul>` : ""}
+        </div>
+      </article>`;
+  }
+
   // Broken image → coloured tile with the source name (no inline onerror handlers).
-  feedEl.addEventListener("error", (e) => {
+  els.feed.addEventListener("error", (e) => {
     const img = e.target;
     if (img.tagName !== "IMG") return;
     const ph = document.createElement("div");
@@ -98,97 +314,361 @@
     img.replaceWith(ph);
   }, true);
 
-  function card(it, lead) {
-    const label = esc(it.source || it.category || "News");
-    const imgUrl = safeUrl(it.image);
-    const img = imgUrl
-      ? `<img src="${esc(imgUrl)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-label="${label}">`
-      : `<div class="ph">${label}</div>`;
-    const showChip = active === "all" || lead;
-    return `
-      <a class="card${lead ? " lead" : ""}" href="${esc(safeUrl(it.link))}" target="_blank" rel="noopener noreferrer" data-c="${colorFor(it.category)}">
-        <div class="thumb">${img}${showChip ? `<span class="chip">${esc(it.category)}</span>` : ""}</div>
-        <div class="body">
-          <h2 class="title">${esc(it.title)}</h2>
-          ${it.summary ? `<p class="summary">${esc(it.summary)}</p>` : ""}
-          <div class="src"><b>${esc(it.source)}</b>${it.published ? `<span>· ${ago(it.published)}</span>` : ""}</div>
-        </div>
-      </a>`;
-  }
-
-  function more() {
-    if (shown >= list.length) return;
-    const next = list.slice(shown, shown + PAGE);
-    feedEl.insertAdjacentHTML("beforeend", next.map((it, i) => card(it, shown === 0 && i === 0 && !qEl.value)).join(""));
-    paint(feedEl);
-    shown += next.length;
-  }
-
-  function render() {
-    const cat = cats.find((c) => c.id === active);
-    const q = qEl.value.trim().toLowerCase();
-    list = (q
-      ? cats[0].items.concat(...cats.slice(1).map((c) => c.items))
-          .filter((it, i, a) => a.findIndex((x) => x.link === it.link) === i)
-          .filter((it) => (it.title + " " + it.summary + " " + it.source).toLowerCase().includes(q))
-      : cat.items
-    ).filter((it) => safeUrl(it.link));
-    // Lead with a story that has an image.
-    if (!q) {
-      const li = list.findIndex((it) => it.image);
-      if (li > 0) list = [list[li], ...list.slice(0, li), ...list.slice(li + 1)];
+  function markRead(it, cardEl) {
+    if (readSet.has(it.link)) return;
+    readSet.add(it.link);
+    persistRead();
+    if (cardEl) {
+      cardEl.classList.add("read");
+      cardEl.querySelector(".new")?.remove();
     }
-    feedEl.innerHTML = list.length ? "" : `<p class="empty">No stories${q ? ` matching “${esc(q)}”` : ""}.</p>`;
-    shown = 0;
-    more();
+    renderTabs();
   }
 
-  function select(id, userAction) {
-    active = id;
-    history.replaceState(null, "", "#" + id);
-    tabsEl.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-selected", b.dataset.id === id));
-    // Centre the selected tab in the (horizontally scrollable) tab strip.
-    const b = tabsEl.querySelector(`[data-id="${CSS.escape(id)}"]`);
-    const left = b.getBoundingClientRect().left - tabsEl.getBoundingClientRect().left + tabsEl.scrollLeft;
-    tabsEl.scrollTo({ left: left - (tabsEl.clientWidth - b.offsetWidth) / 2, behavior: userAction ? "smooth" : "auto" });
-    if (userAction) {
-      qEl.value = "";
-      window.scrollTo({ top: 0 });
+  function toggleSave(it, btn) {
+    if (savedLinks.has(it.link)) {
+      saved = saved.filter((s) => s.link !== it.link);
+      persistSaved();
+      btn.setAttribute("aria-pressed", "false");
+      btn.setAttribute("aria-label", "Save for later");
+      if (active === "saved" && !els.q.value.trim()) render();
+      toast("Removed from saved");
+    } else {
+      const { title, link, image, source, published, category, summary } = it;
+      saved.unshift({ title, link, image, source, published, category, summary, savedAt: new Date().toISOString() });
+      saved = saved.slice(0, 300);
+      persistSaved();
+      btn.setAttribute("aria-pressed", "true");
+      btn.setAttribute("aria-label", "Remove from saved");
+      toast("Saved for later", { action: "View", onAction: () => { if (mode === "archive") exitArchive(); select("saved", true); } });
     }
-    render();
+    renderTabs();
   }
+
+  els.feed.addEventListener("click", (e) => {
+    const cardEl = e.target.closest(".card");
+    if (!cardEl) return;
+    const it = list[+cardEl.dataset.i];
+    if (!it) return;
+    if (e.target.closest("a.hit")) return markRead(it, cardEl);
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    if (btn.classList.contains("save")) toggleSave(it, btn);
+    else if (btn.classList.contains("more")) openMenu(btn, it, cardEl);
+    else if (btn.classList.contains("cov")) {
+      const ul = cardEl.querySelector(".also");
+      const open = ul.hidden;
+      ul.hidden = !open;
+      btn.setAttribute("aria-expanded", String(open));
+    }
+  });
+  els.feed.addEventListener("auxclick", (e) => {
+    const a = e.target.closest("a.hit");
+    if (a && e.button === 1) { const c = a.closest(".card"); markRead(list[+c.dataset.i], c); }
+  });
+
+  // ───────────────────────── ⋯ menu: share, copy, read, mute ─────────────────────────
+
+  let menuCtx = null;
+  function openMenu(btn, it, cardEl) {
+    const m = els.menu;
+    m.innerHTML = `
+      <button type="button" role="menuitem" data-a="share">${ICON.share}<span>Share</span></button>
+      <button type="button" role="menuitem" data-a="copy">${ICON.link}<span>Copy link</span></button>
+      <button type="button" role="menuitem" data-a="read">${ICON.check}<span>${readSet.has(it.link) ? "Mark as unread" : "Mark as read"}</span></button>
+      <button type="button" role="menuitem" data-a="mute">${ICON.eyeOff}<span>Hide stories from ${esc(it.source)}</span></button>`;
+    m.hidden = false;
+    const r = btn.getBoundingClientRect();
+    const w = m.offsetWidth, h = m.offsetHeight;
+    const left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8));
+    const top = r.bottom + h + 8 > innerHeight ? r.top - h - 6 : r.bottom + 6;
+    m.style.left = `${left}px`;
+    m.style.top = `${top}px`;
+    menuCtx = { it, cardEl };
+    m.querySelector("button").focus({ preventScroll: true });
+  }
+  const closeMenu = () => { els.menu.hidden = true; menuCtx = null; };
+  document.addEventListener("click", (e) => {
+    if (!els.menu.hidden && !e.target.closest("#menu") && !e.target.closest(".act.more")) closeMenu();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenu(); });
+  addEventListener("scroll", () => { if (!els.menu.hidden) closeMenu(); }, { passive: true });
+
+  const copyLink = (url) => navigator.clipboard?.writeText(url)
+    .then(() => toast("Link copied"), () => toast("Couldn't copy the link", { kind: "error" }))
+    ?? toast("Couldn't copy the link", { kind: "error" });
+
+  els.menu.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-a]");
+    if (!b || !menuCtx) return;
+    const { it, cardEl } = menuCtx;
+    const url = safeUrl(it.link);
+    closeMenu();
+    switch (b.dataset.a) {
+      case "share":
+        if (navigator.share) navigator.share({ title: it.title, url }).catch(() => {});
+        else copyLink(url);
+        break;
+      case "copy":
+        copyLink(url);
+        break;
+      case "read":
+        if (readSet.has(it.link)) {
+          readSet.delete(it.link);
+          persistRead();
+          cardEl.classList.remove("read");
+          renderTabs();
+        } else markRead(it, cardEl);
+        break;
+      case "mute": {
+        const src = it.source;
+        if (!prefs.mutedSources.includes(src)) prefs.mutedSources.push(src);
+        savePrefs(); buildMute(); render(); renderTabs();
+        toast(`Hiding stories from ${src}`, {
+          action: "Undo",
+          onAction: () => {
+            prefs.mutedSources = prefs.mutedSources.filter((s) => s !== src);
+            savePrefs(); buildMute(); render(); renderTabs();
+          },
+        });
+        break;
+      }
+    }
+  });
+
+  // ───────────────────────── search ─────────────────────────
 
   let t;
-  qEl.addEventListener("input", () => { clearTimeout(t); t = setTimeout(render, 150); });
+  els.q.addEventListener("input", () => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      if (!els.q.value.trim()) pastResults = null;
+      render();
+    }, 150);
+  });
   new IntersectionObserver((e) => e[0].isIntersecting && more(), { rootMargin: "800px" }).observe($("#sentinel"));
 
   addEventListener("hashchange", () => {
     const id = location.hash.slice(1);
-    if (ids.includes(id) && id !== active) select(id, true);
+    if (mode === "live" && id !== active && currentTabs().some((t) => t.id === id)) select(id, true);
   });
 
+  // Swipe left/right on the feed to move between sections (phones).
+  let sx = 0, sy = 0, st = 0;
+  els.feed.addEventListener("touchstart", (e) => {
+    const p = e.touches[0];
+    sx = p.clientX; sy = p.clientY; st = Date.now();
+  }, { passive: true });
+  els.feed.addEventListener("touchend", (e) => {
+    const p = e.changedTouches[0];
+    const dx = p.clientX - sx, dy = p.clientY - sy;
+    if (sx < 24 || Date.now() - st > 600 || Math.abs(dx) < 70 || Math.abs(dx) < 2 * Math.abs(dy) || els.q.value.trim()) return;
+    const ids = currentTabs().map((x) => x.id);
+    const next = ids[ids.indexOf(active) + (dx < 0 ? 1 : -1)];
+    if (next) select(next, true);
+  }, { passive: true });
+
+  // ───────────────────────── weather ─────────────────────────
+
+  function renderWeather() {
+    const w = DATA.weather;
+    if (!w || mode !== "live") { els.wx.hidden = true; return; }
+    const num = (v) => esc(String(Math.round(Number(v))));
+    const name = (iso, i) => (i === 0 ? "Today" : i === 1 ? "Tomorrow" : dayLabel(iso, { weekday: "short" }));
+    els.wx.innerHTML = `
+      <div class="wx-now">
+        <span class="wx-icon" aria-hidden="true">${esc(w.icon)}</span>
+        <div><b>${num(w.temp)}°</b> <span>${esc(w.city)}</span><br>
+          <small>${esc(w.label)} · feels ${num(w.feels)}° · humidity ${num(w.humidity)}%</small></div>
+      </div>
+      <div class="wx-days">${(w.days || []).map((d, i) => `
+        <div class="wx-day"><small>${esc(name(d.date, i))}</small><span aria-hidden="true">${esc(d.icon)}</span>
+          <small>${num(d.max)}° / ${num(d.min)}°</small><small class="rain" title="Chance of rain">💧${num(d.rain)}%</small></div>`).join("")}
+      </div>`;
+    els.wx.hidden = false;
+  }
+
+  // ───────────────────────── archive: past days + search ─────────────────────────
+
+  let archiveIndex = null;
+  const dayCache = new Map();
+  async function getIndex() {
+    if (!archiveIndex) {
+      const r = await fetch("archive/index.json", { cache: "no-cache" });
+      if (!r.ok) throw new Error("index");
+      archiveIndex = (await r.json()).filter((d) => d && /^\d{4}-\d{2}-\d{2}$/.test(d.date));
+    }
+    return archiveIndex;
+  }
+  async function getDay(date) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("date");
+    if (!dayCache.has(date)) {
+      const r = await fetch(`archive/${date}.json`, { cache: "no-cache" });
+      if (!r.ok) throw new Error("day");
+      const d = await r.json();
+      dayCache.set(date, (Array.isArray(d.items) ? d.items : [])
+        .filter((it) => it && typeof it.title === "string").map((it) => ({ ...it, _day: date })));
+    }
+    return dayCache.get(date);
+  }
+
+  const archiveDlg = $("#archiveDlg"), dayList = $("#dayList");
+  async function openArchiveDialog() {
+    dayList.innerHTML = '<p class="note">Loading…</p>';
+    archiveDlg.showModal();
+    try {
+      const idx = await getIndex();
+      dayList.innerHTML = idx.length
+        ? idx.map((d) => `<button type="button" class="day" data-date="${esc(d.date)}"><b>${esc(dayLabel(d.date))}</b><small>${Number(d.count) || 0} stories</small></button>`).join("")
+        : '<p class="note">No past days yet. The archive fills up as the page updates each hour.</p>';
+    } catch {
+      dayList.innerHTML = '<p class="note">Couldn\'t load the archive. Check your connection.</p>';
+    }
+  }
+  dayList.addEventListener("click", (e) => {
+    const b = e.target.closest("button.day");
+    if (b) { archiveDlg.close(); enterArchive(b.dataset.date); }
+  });
+  $("#archiveClose").addEventListener("click", () => archiveDlg.close());
+
+  async function enterArchive(date) {
+    let items;
+    try { items = await getDay(date); } catch { return toast("Couldn't load that day.", { kind: "error" }); }
+    const groups = new Map(live.filter((c) => !["all", "top"].includes(c.id)).map((c) => [c.name, []]));
+    for (const it of items) {
+      if (!groups.has(it.category)) groups.set(it.category, []);
+      groups.get(it.category).push(it);
+    }
+    archiveCats = [
+      { id: "all", name: "All", items: items.filter((it) => !langOf[it.category]) },
+      ...[...groups].filter(([, v]) => v.length).map(([name, v]) => ({ id: nameToId[name] || name.toLowerCase(), name, items: v })),
+    ];
+    if (mode === "live") liveActive = active;
+    mode = "archive";
+    $("#modeText").textContent = `Viewing ${dayLabel(date)}`;
+    els.modebar.hidden = false;
+    renderWeather();
+    renderTabs();
+    select(archiveCats.some((c) => c.id === active) ? active : "all", true);
+  }
+  function exitArchive() {
+    mode = "live";
+    archiveCats = null;
+    els.modebar.hidden = true;
+    renderWeather();
+    renderTabs();
+    select(liveActive || DEFAULT_TAB, true);
+  }
+  $("#modeExit").addEventListener("click", exitArchive);
+
+  els.past.addEventListener("click", async () => {
+    els.past.disabled = true;
+    els.past.textContent = "Searching the last 30 days…";
+    try {
+      const idx = await getIndex();
+      pastResults = (await Promise.all(idx.map((d) => getDay(d.date).catch(() => [])))).flat();
+    } catch {
+      pastResults = null;
+      toast("Couldn't load past days.", { kind: "error" });
+    }
+    render();
+  });
+
+  // ───────────────────────── Personalise dialog ─────────────────────────
+
+  const prefsDlg = $("#prefsDlg");
+  function renderPrefs() {
+    const all = allLiveTabs();
+    $("#secList").innerHTML = all.map((tb, i) => `
+      <li data-id="${esc(tb.id)}">
+        <label><input type="checkbox"${prefs.hidden.includes(tb.id) ? "" : " checked"}> ${esc(tb.name)}</label>
+        <span class="spacer"></span>
+        <button type="button" class="mini" data-move="-1" aria-label="Move ${esc(tb.name)} up"${i === 0 ? " disabled" : ""}>↑</button>
+        <button type="button" class="mini" data-move="1" aria-label="Move ${esc(tb.name)} down"${i === all.length - 1 ? " disabled" : ""}>↓</button>
+      </li>`).join("");
+    const chips = [
+      ...prefs.mutedSources.map((s) => `<span class="chip-x"><span>${esc(s)}</span><small>source</small><button type="button" data-src="${esc(s)}" aria-label="Show ${esc(s)} again">×</button></span>`),
+      ...prefs.mutedWords.map((w) => `<span class="chip-x"><span>${esc(w)}</span><small>word</small><button type="button" data-word="${esc(w)}" aria-label="Stop hiding ${esc(w)}">×</button></span>`),
+    ];
+    $("#muteChips").innerHTML = chips.length ? chips.join("") : '<p class="note">Nothing hidden. Use ⋯ on a story to hide its source, or add a word below.</p>';
+  }
+  const applyPrefs = () => {
+    savePrefs(); buildMute(); renderPrefs(); renderTabs();
+    if (mode === "live") select(active, false); else render();
+  };
+  $("#prefsBtn").addEventListener("click", () => { renderPrefs(); prefsDlg.showModal(); });
+  $("#prefsDone").addEventListener("click", () => prefsDlg.close());
+  $("#secList").addEventListener("change", (e) => {
+    const li = e.target.closest("li");
+    if (!li) return;
+    const id = li.dataset.id;
+    if (e.target.checked) prefs.hidden = prefs.hidden.filter((h) => h !== id);
+    else if (allLiveTabs().length - prefs.hidden.length > 1) prefs.hidden.push(id);
+    else { e.target.checked = true; return toast("Keep at least one section visible."); }
+    applyPrefs();
+  });
+  $("#secList").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-move]");
+    if (!b) return;
+    const ids = allLiveTabs().map((x) => x.id);
+    const i = ids.indexOf(b.closest("li").dataset.id), j = i + Number(b.dataset.move);
+    if (j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    prefs.order = ids;
+    applyPrefs();
+    $(`#secList li[data-id="${CSS.escape(ids[j])}"] button[data-move="${b.dataset.move}"]`)?.focus();
+  });
+  $("#muteChips").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.src) prefs.mutedSources = prefs.mutedSources.filter((s) => s !== b.dataset.src);
+    if (b.dataset.word) prefs.mutedWords = prefs.mutedWords.filter((w) => w !== b.dataset.word);
+    applyPrefs();
+  });
+  const addWord = () => {
+    const w = $("#muteInput").value.trim();
+    if (w.length < 2 || w.length > 60) return toast("Enter a word or phrase (2–60 characters).");
+    if (!prefs.mutedWords.some((x) => x.toLowerCase() === w.toLowerCase())) prefs.mutedWords.push(w);
+    $("#muteInput").value = "";
+    applyPrefs();
+  };
+  $("#muteAdd").addEventListener("click", addWord);
+  $("#muteInput").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addWord(); } });
+  $("#clearRead").addEventListener("click", () => {
+    readSet.clear();
+    store.del("read");
+    render(); renderTabs();
+    toast("Reading history cleared");
+  });
+  $("#tokenOpen").addEventListener("click", () => { prefsDlg.close(); openTokenDialog(); });
+  $("#prefsReset").addEventListener("click", () => {
+    Object.assign(prefs, { order: [], hidden: [], mutedSources: [], mutedWords: [] });
+    applyPrefs();
+    toast("Sections and hidden items reset");
+  });
+
+  // ───────────────────────── start ─────────────────────────
+
+  renderWeather();
+  const hashId = location.hash.slice(1);
+  active = currentTabs().some((x) => x.id === hashId) ? hashId : DEFAULT_TAB;
+  renderTabs();
   select(active, false);
 
   // ───────────────────────── Refresh button + "new stories" banner ─────────────────────────
 
   function setupRefresh(loadedAt) {
-    const btn = $("#refresh"), toast = $("#toast"), banner = $("#banner");
+    const btn = $("#refresh"), banner = $("#banner");
     const dlg = $("#tokenDlg"), tokIn = $("#tokenInput"), tokErr = $("#tokenErr");
     let busy = false;
 
     // Never offer the token dialog inside someone else's frame (clickjacking).
     if (window.top !== window.self) {
       btn.hidden = true;
-      $("#refreshSettings").hidden = true;
+      $("#tokenOpen").hidden = true;
       return;
     }
 
-    const say = (msg, kind = "") => {
-      toast.textContent = msg;
-      toast.className = "toast show " + kind;
-      clearTimeout(say.t);
-      if (kind !== "busy") say.t = setTimeout(() => toast.classList.remove("show"), 6000);
-    };
     const setBusy = (b) => { busy = b; btn.classList.toggle("spin", b); btn.disabled = b; };
 
     async function latestVersion() {
@@ -199,7 +679,7 @@
     }
 
     async function loadFresh() {
-      say("Loading the latest stories…", "busy");
+      toast("Loading the latest stories…", { sticky: true });
       try { await fetch("data.js", { cache: "reload" }); } catch {}
       location.reload();
     }
@@ -216,13 +696,13 @@
     document.addEventListener("visibilitychange", checkForUpdate);
 
     // Token dialog
-    function openDialog(message) {
+    openTokenDialog = (message) => {
       tokIn.value = "";
       tokErr.textContent = message || "";
       $("#tokenForget").hidden = !store.get(TOKEN_KEY);
       dlg.showModal();
       tokIn.focus();
-    }
+    };
     $("#tokenSave").addEventListener("click", () => {
       const v = tokIn.value.trim();
       if (/^(ghp_|gho_|ghu_|ghs_)/.test(v)) {
@@ -243,17 +723,17 @@
       store.del(TOKEN_KEY);
       tokIn.value = "";
       dlg.close();
-      say("Token removed from this device.");
+      toast("Token removed from this device.");
     });
-    $("#refreshSettings").addEventListener("click", (e) => { e.preventDefault(); openDialog(); });
 
     async function refresh() {
       if (busy) return;
       const token = store.get(TOKEN_KEY);
-      if (!token || !TOKEN_RE.test(token)) return openDialog();
+      if (!token || !TOKEN_RE.test(token)) return openTokenDialog();
+      if (!navigator.onLine) return toast("You're offline. Connect to the internet to fetch fresh news.", { kind: "error" });
 
       setBusy(true);
-      say("Asking GitHub to fetch the latest news…", "busy");
+      toast("Asking GitHub to fetch the latest news…", { sticky: true });
       let res;
       try {
         res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/dispatches`, {
@@ -271,26 +751,26 @@
         });
       } catch {
         setBusy(false);
-        return say("Couldn't reach GitHub. Check your connection.", "error");
+        return toast("Couldn't reach GitHub. Check your connection.", { kind: "error" });
       }
 
       if (res.status === 401) {
         store.del(TOKEN_KEY);
         setBusy(false);
-        toast.classList.remove("show");
-        return openDialog("GitHub rejected the saved token (expired or deleted). Please paste a new one.");
+        els.toast.classList.remove("show");
+        return openTokenDialog("GitHub rejected the saved token (expired or deleted). Please paste a new one.");
       }
       if (res.status === 403 || res.status === 404) {
         setBusy(false);
-        toast.classList.remove("show");
-        return openDialog("The token works but can't run this job. Make sure it has access to the daily-news repository with Actions: Read and write.");
+        els.toast.classList.remove("show");
+        return openTokenDialog("The token works but can't run this job. Make sure it has access to the daily-news repository with Actions: Read and write.");
       }
       if (!res.ok) {
         setBusy(false);
-        return say(`GitHub returned an error (${res.status}). Try again in a minute.`, "error");
+        return toast(`GitHub returned an error (${res.status}). Try again in a minute.`, { kind: "error" });
       }
 
-      say("Fetching news… this takes about a minute.", "busy");
+      toast("Fetching news… this takes about a minute.", { sticky: true });
       const deadline = Date.now() + 5 * 60_000;
       while (Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 10_000));
@@ -298,7 +778,7 @@
         if (v && v > loadedAt) return loadFresh();
       }
       setBusy(false);
-      say("Still working on GitHub's side. The banner will appear when it's ready.", "error");
+      toast("Still working on GitHub's side. The banner will appear when it's ready.", { kind: "error" });
     }
     btn.addEventListener("click", refresh);
   }

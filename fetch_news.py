@@ -2,8 +2,10 @@
 """Fetch RSS/Atom feeds listed in feeds.json and write site/data.js for the dashboard.
 
 Standard library only, so it runs anywhere with Python 3.9+:
-    python3 fetch_news.py
+    python3 fetch_news.py                 # just the news (local preview)
+    python3 fetch_news.py --store store   # also update the archive + feed health (GitHub Actions)
 """
+import argparse
 import html
 import json
 import re
@@ -15,6 +17,11 @@ from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.parse import urlparse
+
+import archive
+import cluster
+import feed_health
+import weather
 
 ROOT = Path(__file__).resolve().parent
 CONFIG = ROOT / "feeds.json"
@@ -59,7 +66,9 @@ def text(el):
 
 
 def strip_html(s):
-    s = re.sub(r"<[^>]+>", " ", s or "")
+    # Unescape first: some feeds double-escape their HTML (&lt;p&gt;), which would otherwise show as "<p>".
+    s = html.unescape(s or "")
+    s = re.sub(r"<[^>]+>", " ", s)
     s = html.unescape(s)
     return re.sub(r"\s+", " ", s).strip()
 
@@ -110,6 +119,10 @@ def source_name(url):
         "sports.ndtv.com": "NDTV Sports", "indiandefensenews.in": "Indian Defence News",
         "defencexp.com": "DefenceXP", "firstpost.com": "Firstpost", "hindustantimes.com": "Hindustan Times",
         "indiatoday.in": "India Today", "theweek.in": "The Week", "bollywoodhungama.com": "Bollywood Hungama",
+        "cricinfo.com": "ESPNcricinfo", "ndtv.in": "NDTV India", "aajtak.in": "Aaj Tak", "amarujala.com": "Amar Ujala",
+        "asianetnews.com": "Asianet Kannada", "tv9kannada.com": "TV9 Kannada", "prajavani.net": "Prajavani",
+        "oneindia.com": "OneIndia Kannada", "newindianexpress.com": "New Indian Express", "ssbcrack.com": "SSBCrack",
+        "manoramayearbook.in": "Manorama Yearbook", "cxodigitalpulse.com": "CXO Digital Pulse",
     }
     for k, v in known.items():
         if host.endswith(k):
@@ -149,6 +162,8 @@ def parse_feed(url, data):
             source = text(src_el) or None
             if source and title.endswith(" - " + source):
                 title = title[: -len(" - " + source)]
+            if source and re.fullmatch(r"[\w.-]+\.[a-z]{2,}", source):  # Google sometimes gives a bare domain
+                source = source_name("https://" + source)
             raw = ""  # Google News descriptions are just link lists
         summary = strip_html(raw)
         if len(summary) > 220:
@@ -214,10 +229,19 @@ def keyword_matcher(keywords):
 
 def norm_title(t):
     # First ~60 chars of the normalised headline: catches the same story syndicated by several outlets.
-    return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()[:60]
+    # \w is Unicode-aware, so Hindi/Kannada headlines keep their letters.
+    return re.sub(r"[\W_]+", " ", t.lower()).strip()[:60]
+
+
+def log(msg):
+    print(msg, file=sys.stderr)
 
 
 def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--store", help="directory holding the archive and feed-health state (the `archive` branch)")
+    args = ap.parse_args()
+
     cfg = json.loads(CONFIG.read_text())
     settings = cfg["settings"]
 
@@ -239,18 +263,18 @@ def main():
             results[u] = (results[u][0][:n], results[u][1])
 
     for u, (items, err) in sorted(results.items()):
-        print(f"{'FAIL' if err else 'ok  '} {len(items):4d}  {u}" + (f"  ({err})" if err else ""), file=sys.stderr)
+        log(f"{'FAIL' if err else 'ok  '} {len(items):4d}  {u}" + (f"  ({err})" if err else ""))
 
     categories = []
     for cat in cfg["categories"]:
         pool = []
         for u in cat["feeds"]:
-            pool.extend(results[u][0])
+            pool.extend(dict(it) for it in results[u][0])
         # "scan" feeds only contribute stories whose title matches the section's keywords.
         kw = keyword_matcher(cat.get("keywords", []))
         for u in cat.get("scan", []):
             pool.extend(dict(it) for it in results[u][0] if kw and kw(it["title"]))
-        categories.append({"id": cat["id"], "name": cat["name"], "items": pool,
+        categories.append({"id": cat["id"], "name": cat["name"], "lang": cat.get("lang"), "items": pool,
                            "max_age": cat.get("max_age_hours", settings["max_age_hours"])})
 
     blocked = {s.lower() for s in settings.get("block_sources", [])}
@@ -270,6 +294,8 @@ def main():
             kept.append(it)
         kept.sort(key=lambda i: i["published"] or "", reverse=True)
         c["items"] = kept[: settings["per_category"]]
+        for it in c["items"]:
+            it["category"] = c["name"]
 
     if settings.get("fetch_missing_images"):
         missing = [it for c in categories for it in c["items"] if not it["image"]]
@@ -278,35 +304,77 @@ def main():
             found = dict(zip(uniq, ex.map(fetch_og_image, uniq)))
         for it in missing:
             it["image"] = found.get(it["link"])
-        print(f"og:image lookups: {sum(1 for v in found.values() if v)}/{len(uniq)} found", file=sys.stderr)
+        log(f"og:image lookups: {sum(1 for v in found.values() if v)}/{len(uniq)} found")
 
-    # "All" tab: round-robin across categories so the mix stays varied.
+    english = [c for c in categories if not c["lang"]]
+
+    # Same story across outlets → "covered by N sources" links, and the Top Stories tab.
+    unique = list({it["link"]: it for c in english for it in c["items"]}.values())
+    top_cfg = settings.get("top_stories", {})
+    also, top = {}, []
+    top_cutoff = (now - timedelta(hours=top_cfg.get("max_age_hours", 24))).isoformat()
+    for group in cluster.cluster(unique):
+        by_source = {}
+        for it in sorted(group, key=lambda i: i["published"] or "", reverse=True):
+            by_source.setdefault(it["source"], it)
+        if len(by_source) < 2:
+            continue
+        for it in group:
+            also[it["link"]] = [
+                {"source": o["source"], "link": o["link"], "title": o["title"]}
+                for o in by_source.values() if o["source"] != it["source"]
+            ][:6]
+        lead = cluster.pick_lead(list(by_source.values()))
+        newest = max((i["published"] or "") for i in group)
+        if len(by_source) >= top_cfg.get("min_sources", 2) and newest >= top_cutoff:
+            top.append((len(by_source), newest, lead))
+    for c in categories:
+        for it in c["items"]:
+            if it["link"] in also:
+                it["also"] = also[it["link"]]
+    top.sort(key=lambda t: (t[0], t[1]), reverse=True)
+    top_items = [{**lead, "coverage": n} for n, _, lead in top[: top_cfg.get("limit", 30)]]
+
+    # "All" tab: round-robin across the English sections so the mix stays varied.
     mixed, seen = [], set()
-    queues = [list(c["items"]) for c in categories]
+    queues = [list(c["items"]) for c in english]
     while any(queues) and len(mixed) < settings["all_tab_limit"]:
-        for c, q in zip(categories, queues):
+        for q in queues:
             while q:
                 it = q.pop(0)
                 key = norm_title(it["title"])
                 if key not in seen:
                     seen.add(key)
-                    mixed.append({**it, "category": c["name"]})
+                    mixed.append(it)
                     break
 
+    sections = [{"id": "all", "name": "All", "items": mixed}]
+    if top_items:
+        sections.append({"id": "top", "name": "Top Stories", "items": top_items})
     for c in categories:
-        for it in c["items"]:
-            it["category"] = c["name"]
+        sections.append({"id": c["id"], "name": c["name"], "items": c["items"], **({"lang": c["lang"]} if c["lang"] else {})})
 
     data = {
-        "generated": datetime.now(timezone.utc).isoformat(),
-        "categories": [{"id": "all", "name": "All", "items": mixed}] + categories,
+        "generated": now.isoformat(),
+        "weather": weather.fetch_weather(cfg.get("weather"), http_get),
+        "archive": bool(args.store),
+        "categories": sections,
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("window.NEWS_DATA = " + json.dumps(data, ensure_ascii=False) + ";\n")
     # Tiny file the page polls to learn that a newer update has been published.
     (OUT.parent / "version.json").write_text(json.dumps({"generated": data["generated"]}) + "\n")
     total = sum(len(c["items"]) for c in categories)
-    print(f"Wrote {OUT.relative_to(ROOT)}: {total} stories across {len(categories)} sections", file=sys.stderr)
+    log(f"Wrote {OUT.relative_to(ROOT)}: {total} stories across {len(categories)} sections, "
+        f"{len(top_items)} top stories, {len(also)} with other-outlet links")
+
+    if args.store:
+        stories = list({it["link"]: it for c in categories for it in c["items"]}.values())
+        index = archive.update(args.store, OUT.parent, stories, settings.get("archive_days", 30), now)
+        log(f"Archive: {len(index)} days, today {index[0]['count'] if index else 0} stories")
+        health = feed_health.record(args.store, results)
+        bad = {u: h["fails"] for u, h in health.items() if h["fails"]}
+        log(f"Feed health: {len(bad)} failing " + (str(bad) if bad else ""))
 
 
 if __name__ == "__main__":

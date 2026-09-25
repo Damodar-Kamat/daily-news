@@ -11,6 +11,32 @@
       ]
     },
     {
+      "id": "bengaluru",
+      "name": "Bengaluru",
+      "feeds": [
+        "https://www.thehindu.com/news/cities/bangalore/feeder/default.rss",
+        "https://timesofindia.indiatimes.com/rssfeeds/-2128833038.cms",
+        "https://www.newindianexpress.com/cities/bengaluru/rssfeed/?id=182&getXmlFeed=true"
+      ],
+      "keywords": [
+        "Bengaluru",
+        "Bangalore",
+        "BBMP",
+        "GBA",
+        "BMTC",
+        "BWSSB",
+        "Namma Metro",
+        "Whitefield",
+        "Electronic City",
+        "Koramangala"
+      ],
+      "scan": [
+        "https://www.thehindu.com/news/national/feeder/default.rss",
+        "https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml",
+        "https://www.indiatoday.in/rss/1206514"
+      ]
+    },
+    {
       "id": "defence",
       "name": "Defence",
       "feeds": [
@@ -136,6 +162,37 @@
       "feeds": [
         "https://feeds.bbci.co.uk/news/health/rss.xml"
       ]
+    },
+    {
+      "id": "hindi",
+      "name": "हिंदी",
+      "lang": "hi",
+      "feeds": [
+        "https://feeds.bbci.co.uk/hindi/rss.xml",
+        "https://feeds.feedburner.com/ndtvkhabar-latest",
+        {
+          "url": "https://www.aajtak.in/rssfeeds/?id=home",
+          "limit": 30
+        },
+        "https://www.amarujala.com/rss/breaking-news.xml"
+      ]
+    },
+    {
+      "id": "kannada",
+      "name": "ಕನ್ನಡ",
+      "lang": "kn",
+      "feeds": [
+        "https://www.prajavani.net/feed",
+        "https://tv9kannada.com/feed",
+        {
+          "url": "https://kannada.asianetnews.com/rss",
+          "limit": 40
+        },
+        {
+          "url": "https://kannada.oneindia.com/rss/kannada-news-fb.xml",
+          "limit": 20
+        }
+      ]
     }
   ],
   "settings": {
@@ -157,6 +214,18 @@
       "Facebook",
       "Instagram",
       "X"
-    ]
+    ],
+    "top_stories": {
+      "min_sources": 2,
+      "limit": 30,
+      "max_age_hours": 24
+    },
+    "archive_days": 30
+  },
+  "weather": {
+    "city": "Bengaluru",
+    "latitude": 12.9716,
+    "longitude": 77.5946,
+    "timezone": "Asia/Kolkata"
   }
 }

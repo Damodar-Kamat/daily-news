@@ -1,5 +1,7 @@
 site/data.js
 site/version.json
+site/archive/
+store/
 .claude/
 __pycache__/
 .DS_Store

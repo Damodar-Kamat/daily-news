@@ -8,23 +8,20 @@ on:
   push:
     branches: [main]
 
-# Least privilege: the job can only read the code and publish to Pages.
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+# Nothing by default; each job below asks only for what it needs.
+permissions: {}
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+    permissions:
+      contents: write   # save the day-by-day archive to the `archive` branch
+      issues: write     # open/close "Feed failing" issues
     steps:
       # Actions are pinned to exact commits (not movable tags) so a compromised
       # upstream release can't change what runs here.
@@ -34,11 +31,49 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+
+      - name: Load archive
+        run: |
+          git clone --quiet --depth 1 --branch archive "https://github.com/${GITHUB_REPOSITORY}.git" store \
+            || { mkdir -p store && git -C store init --quiet -b archive; }
+
       - name: Fetch feeds
-        run: python fetch_news.py
-      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+        run: python fetch_news.py --store store
+
+      - name: Report broken feeds
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python feed_health.py store
+
+      - name: Save archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          cd store
+          git add -A
+          # One parentless commit each time, so the branch never piles up history.
+          commit=$(git commit-tree "$(git write-tree)" -m "Archive snapshot $(date -u +%FT%TZ)")
+          git push --quiet --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "${commit}:refs/heads/archive"
+
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
       - id: deploy
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
