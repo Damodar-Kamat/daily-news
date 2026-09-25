@@ -57,11 +57,11 @@
     <p>The ⟳ button asks GitHub to fetch fresh news right now. It needs a GitHub token that can
       <strong>only run the update job</strong> of this one repository.</p>
     <ol>
-      <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">GitHub → New fine-grained token</a>.</li>
-      <li>Name it <em>daily-news refresh</em> and pick an expiry.</li>
+      <li>Open <a href="https://github.com/settings/personal-access-tokens/new?name=daily-news+refresh&amp;description=Daily+Brief+refresh+button&amp;expires_in=366&amp;actions=write" target="_blank" rel="noopener noreferrer">this pre-filled GitHub token form</a>
+        (name, 1-year expiry and <strong>Actions: Read and write</strong> are filled in).</li>
       <li>Repository access: <strong>Only select repositories → daily-news</strong>.</li>
-      <li>Permissions → Repository → <strong>Actions: Read and write</strong>. Leave everything else as “No access”.</li>
-      <li>Generate, copy the token (starts with <code>github_pat_</code>) and paste it below.</li>
+      <li>Check Permissions shows <strong>Actions: Read and write</strong> and <strong>Metadata: Read-only</strong> (added automatically), nothing else.</li>
+      <li>Click <strong>Generate token</strong>, copy it (starts with <code>github_pat_</code>) and paste it below.</li>
     </ol>
     <p class="note">It is saved only in this browser on this device and sent only to api.github.com.
       You can delete it anytime here or on GitHub.</p>

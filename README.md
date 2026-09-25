@@ -38,11 +38,12 @@ you and you re-enable the workflow with one click in the Actions tab.
 Tapping ⟳ on the page starts the GitHub job right away and reloads the page when fresh news is live (about a minute).
 The first time, it asks for a GitHub **fine-grained token**:
 
-1. Open https://github.com/settings/personal-access-tokens/new
-2. Name: `daily-news refresh`. Pick an expiry (for example 1 year).
-3. Repository access: **Only select repositories → daily-news**
-4. Permissions → Repository permissions → **Actions: Read and write**. Leave everything else as "No access".
-5. Generate, copy the `github_pat_…` token and paste it into the page.
+1. Open the pre-filled form:
+   https://github.com/settings/personal-access-tokens/new?name=daily-news+refresh&description=Daily+Brief+refresh+button&expires_in=366&actions=write
+2. Repository access: **Only select repositories → daily-news** (links can't pre-select this).
+3. Permissions should show **Actions: Read and write** and **Metadata: Read-only** (always added). If filling it by hand:
+   choose the repository first, then **+ Add permissions → Actions**, and set its Access dropdown to **Read and write**.
+4. Generate, copy the `github_pat_…` token and paste it into the page.
 
 It is saved only in that browser on that device. Remove it via "Refresh button settings" at the bottom of the page,
 or delete it on GitHub (Settings → Developer settings → Personal access tokens).
