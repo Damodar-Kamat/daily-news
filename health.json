@@ -1,0 +1,194 @@
+{
+ "https://economictimes.indiatimes.com/news/defence/rssfeeds/46687796.cms": {
+  "fails": 0
+ },
+ "https://feeds.arstechnica.com/arstechnica/index": {
+  "fails": 0
+ },
+ "https://feeds.bbci.co.uk/hindi/rss.xml": {
+  "fails": 0
+ },
+ "https://feeds.bbci.co.uk/news/business/rss.xml": {
+  "fails": 0
+ },
+ "https://feeds.bbci.co.uk/news/health/rss.xml": {
+  "fails": 0
+ },
+ "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml": {
+  "fails": 0
+ },
+ "https://feeds.bbci.co.uk/news/technology/rss.xml": {
+  "fails": 0
+ },
+ "https://feeds.bbci.co.uk/news/world/rss.xml": {
+  "fails": 0
+ },
+ "https://feeds.bbci.co.uk/sport/rss.xml": {
+  "fails": 0
+ },
+ "https://feeds.feedburner.com/gadgets360-latest": {
+  "fails": 0
+ },
+ "https://feeds.feedburner.com/ndtvkhabar-latest": {
+  "fails": 0
+ },
+ "https://feeds.feedburner.com/ndtvnews-india-news": {
+  "fails": 0
+ },
+ "https://feeds.feedburner.com/ndtvnews-world-news": {
+  "fails": 0
+ },
+ "https://feeds.feedburner.com/ndtvsports-latest": {
+  "fails": 0
+ },
+ "https://idrw.org/feed/": {
+  "fails": 0
+ },
+ "https://kannada.asianetnews.com/rss": {
+  "fails": 0
+ },
+ "https://kannada.oneindia.com/rss/kannada-news-fb.xml": {
+  "fails": 0
+ },
+ "https://news.google.com/rss/search?q=%22Indian+Army%22+OR+%22Indian+Navy%22+OR+%22Indian+Air+Force%22+OR+DRDO+when:2d&hl=en-IN&gl=IN&ceid=IN:en": {
+  "fails": 0
+ },
+ "https://techcrunch.com/feed/": {
+  "fails": 0
+ },
+ "https://theprint.in/category/defence/feed/": {
+  "fails": 0
+ },
+ "https://timesofindia.indiatimes.com/rssfeeds/-2128833038.cms": {
+  "fails": 0
+ },
+ "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms": {
+  "fails": 0
+ },
+ "https://tv9kannada.com/feed": {
+  "fails": 0
+ },
+ "https://www.aajtak.in/rssfeeds/?id=home": {
+  "fails": 0
+ },
+ "https://www.aljazeera.com/xml/rss/all.xml": {
+  "fails": 0
+ },
+ "https://www.amarujala.com/rss/breaking-news.xml": {
+  "fails": 0
+ },
+ "https://www.bollywoodhungama.com/feed/": {
+  "fails": 0
+ },
+ "https://www.defencexp.com/feed/": {
+  "fails": 0
+ },
+ "https://www.espncricinfo.com/rss/content/story/feeds/0.xml": {
+  "fails": 0
+ },
+ "https://www.hindustantimes.com/feeds/rss/business/rssfeed.xml": {
+  "fails": 0
+ },
+ "https://www.hindustantimes.com/feeds/rss/cricket/rssfeed.xml": {
+  "fails": 0
+ },
+ "https://www.hindustantimes.com/feeds/rss/entertainment/rssfeed.xml": {
+  "fails": 0
+ },
+ "https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml": {
+  "fails": 0
+ },
+ "https://www.hindustantimes.com/feeds/rss/sports/rssfeed.xml": {
+  "fails": 0
+ },
+ "https://www.hindustantimes.com/feeds/rss/technology/rssfeed.xml": {
+  "fails": 0
+ },
+ "https://www.hindustantimes.com/feeds/rss/world-news/rssfeed.xml": {
+  "fails": 0
+ },
+ "https://www.indiandefensenews.in/feeds/posts/default?alt=rss": {
+  "fails": 0
+ },
+ "https://www.indiatoday.in/rss/1206514": {
+  "fails": 0
+ },
+ "https://www.indiatoday.in/rss/1206550": {
+  "fails": 0
+ },
+ "https://www.indiatoday.in/rss/1206577": {
+  "fails": 0
+ },
+ "https://www.indiatoday.in/rss/1206688": {
+  "fails": 0
+ },
+ "https://www.livemint.com/rss/markets": {
+  "fails": 0
+ },
+ "https://www.livemint.com/rss/technology": {
+  "fails": 0
+ },
+ "https://www.newindianexpress.com/cities/bengaluru/rssfeed/?id=182&getXmlFeed=true": {
+  "fails": 0
+ },
+ "https://www.prajavani.net/feed": {
+  "fails": 0
+ },
+ "https://www.sciencedaily.com/rss/top/science.xml": {
+  "fails": 0
+ },
+ "https://www.thehindu.com/business/feeder/default.rss": {
+  "fails": 0
+ },
+ "https://www.thehindu.com/entertainment/feeder/default.rss": {
+  "fails": 0
+ },
+ "https://www.thehindu.com/news/cities/bangalore/feeder/default.rss": {
+  "fails": 0
+ },
+ "https://www.thehindu.com/news/international/feeder/default.rss": {
+  "fails": 0
+ },
+ "https://www.thehindu.com/news/national/feeder/default.rss": {
+  "fails": 0
+ },
+ "https://www.thehindu.com/sci-tech/science/feeder/default.rss": {
+  "fails": 0
+ },
+ "https://www.thehindu.com/sport/feeder/default.rss": {
+  "fails": 0
+ },
+ "https://www.theverge.com/rss/index.xml": {
+  "fails": 0
+ },
+ "https://www.youtube.com/feeds/videos.xml?channel_id=UC16niRr50-MSBwiO3YDb3RA": {
+  "fails": 0
+ },
+ "https://www.youtube.com/feeds/videos.xml?channel_id=UCBJycsmduvYEL83R_U4JriQ": {
+  "fails": 0
+ },
+ "https://www.youtube.com/feeds/videos.xml?channel_id=UCKwucPzHZ7zCUIf7If-Wo1g": {
+  "fails": 0
+ },
+ "https://www.youtube.com/feeds/videos.xml?channel_id=UCNye-wNBqNL5ZzHSJj3l8Bg": {
+  "fails": 0
+ },
+ "https://www.youtube.com/feeds/videos.xml?channel_id=UCYPvAwZP8pZhSMW8qs7cVCw": {
+  "fails": 0
+ },
+ "https://www.youtube.com/feeds/videos.xml?channel_id=UCZFMm1mMw0F81Z37aaEzTUA": {
+  "fails": 0
+ },
+ "https://www.youtube.com/feeds/videos.xml?channel_id=UC_gUM8rL-Lrg6O3adPW9K1g": {
+  "fails": 0
+ },
+ "https://www.youtube.com/feeds/videos.xml?channel_id=UCddiUEpeqJcYeBxX1IVBKvQ": {
+  "fails": 0
+ },
+ "https://www.youtube.com/feeds/videos.xml?channel_id=UCuyRsHZILrU7ZDIAbGASHdA": {
+  "fails": 0
+ },
+ "https://www.youtube.com/feeds/videos.xml?channel_id=UCz8QaiQxApLq8sLNcszYyJw": {
+  "fails": 0
+ }
+}
